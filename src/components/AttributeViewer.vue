@@ -2,8 +2,7 @@
   <table>
     <thead>
       <tr>
-        <th>Key</th>
-        <th>Value</th>
+        <th colspan="2">Summary</th>
       </tr>
     </thead>
     <tbody>
@@ -16,6 +15,8 @@
 </template>
 
 <script>
+import Vue from 'vue';
+
 export default {
   name: 'AttributeViewer',
   props: {
@@ -23,6 +24,9 @@ export default {
       required: true,
       type: Object
     }
+  },
+  mounted() {
+    Vue.nextTick(() => this.$emit('loaded'));
   }
 };
 </script>

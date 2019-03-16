@@ -4,21 +4,34 @@
     <div id="container">
       <div id="head-spacer"></div>
       <div id="photos" class="grid-item">
-        <PhotoViewer />
+        <PhotoViewer @loaded="loaded.photo = true" />
       </div>
       <div id="tags" class="grid-item">
-        <TagPicker :tag-list="tags('people')" :tag-type="'people'" />
+        <TagPicker
+          :tag-list="tags('people')"
+          :tag-type="'people'"
+          @loaded="loaded.tags = true"
+        />
       </div>
       <div id="people" class="grid-item">
-        <TagPicker :tag-list="tags('tags')" :tag-type="'tags'" />
+        <TagPicker
+          :tag-list="tags('tags')"
+          :tag-type="'tags'"
+          @loaded="loaded.people = true"
+        />
       </div>
       <div id="map" class="grid-item">
-        <MapPicker :location="location" :api-key="''" />
+        <MapPicker
+          :location="location"
+          :api-key="''"
+          @loaded="loaded.map = true"
+        />
       </div>
       <div id="summary" class="grid-item">
-        <AttributeViewer :data="summary" />
+        <AttributeViewer :data="summary" @loaded="loaded.summary = true" />
       </div>
     </div>
+    <BaseLoader v-if="showLoader" />
   </div>
 </template>
 
@@ -26,20 +39,54 @@
 import { mapGetters } from 'vuex';
 
 import MapPicker from '@/components/MapPicker.vue';
+import BaseLoader from '@/components/BaseLoader.vue';
 import TagPicker from '@/components/TagPicker.vue';
 import AttributeViewer from '@/components/AttributeViewer.vue';
 import PhotoViewer from '@/components/PhotoViewer.vue';
 
 export default {
   name: 'App',
-  components: { MapPicker, TagPicker, AttributeViewer, PhotoViewer },
+  components: {
+    MapPicker,
+    BaseLoader,
+    TagPicker,
+    AttributeViewer,
+    PhotoViewer
+  },
+  data() {
+    return {
+      loaded: {
+        photo: false,
+        tags: false,
+        people: false,
+        map: false,
+        summary: false
+      }
+    };
+  },
   computed: {
-    ...mapGetters(['location', 'summary', 'tags'])
+    ...mapGetters(['location', 'summary', 'tags']),
+    showLoader() {
+      return !(
+        this.loaded.photo &&
+        this.loaded.tags &&
+        this.loaded.people &&
+        this.loaded.map &&
+        this.loaded.summary
+      );
+    }
   }
 };
 </script>
 
 <style lang="scss">
+:root {
+  --background: #171819;
+  --text: #d8d9da;
+  --component-background: #303032;
+  --border: #404042;
+}
+
 /* Apply a natural box layout model to all elements, but allowing components to change */
 html {
   box-sizing: border-box;
@@ -50,42 +97,51 @@ html {
   box-sizing: inherit;
 }
 
-#nav {
-  padding: 30px;
-  a {
-    font-weight: bold;
-    color: #2c3e50;
-    &.router-link-exact-active {
-      color: #42b983;
-    }
+body {
+  color: var(--text);
+  background-color: var(--background);
+}
+
+input {
+  background: var(--background);
+  color: var(--text);
+  border: 1px solid var(--border);
+
+  &:focus {
+    outline: none;
+    box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075),
+      0 0 5px rgba(102, 175, 233, 0.6);
   }
 }
 
 #app {
-  font-family: Arial, sans-serif;
+  font-family: Roboto, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  color: #2c3e50;
-  font-size: 16px;
+  font-size: 18px;
   line-height: 1.5;
+}
+</style>
 
+<style lang="scss" scoped>
+#app {
   #header {
     height: 50px;
     width: 100%;
     min-width: 500px;
     position: fixed;
     z-index: 100;
-    background: #2c3e50;
+    background: var(--component-background);
   }
 
   div#container {
     display: grid;
-    grid-template-columns: auto 500px 500px auto;
+    grid-template-columns: auto 500px 5px 500px auto;
     grid-template-areas:
-      'head-spacer head-spacer head-spacer head-spacer'
-      '.           photos      tags                  .'
-      '.           photos      people                .'
-      '.           map         summary               .';
+      'head-spacer head-spacer head-spacer head-spacer head-spacer'
+      '.           photos      .           tags                  .'
+      '.           photos      .           people                .'
+      '.           map         .           summary               .';
 
     #head-spacer {
       grid-area: head-spacer;
@@ -99,11 +155,13 @@ html {
       grid-area: tags;
       width: 500px;
       min-height: 225px;
+      padding: 10px;
     }
     #people {
       grid-area: people;
       width: 500px;
       min-height: 225px;
+      padding: 10px;
     }
     #map {
       grid-area: map;
@@ -113,13 +171,13 @@ html {
       grid-area: summary;
       width: 500px;
       min-height: 350px;
-    }
-    #footer {
-      grid-area: footer;
-      height: 30px;
+      padding: 10px;
     }
     .grid-item {
-      border: solid 1px blue;
+      margin-top: 5px;
+      background: var(--component-background);
+      border: solid 3px var(--border);
+      border-radius: 5px;
     }
   }
 

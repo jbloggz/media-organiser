@@ -1,13 +1,13 @@
 import Vue from 'vue';
 import Vuex from 'vuex';
 import _ from 'lodash';
-import { pretty_size } from '@/util.js';
+import { pretty_size, pretty_gps } from '@/util.js';
 
 Vue.use(Vuex);
 
 export default new Vuex.Store({
   state: {
-    index: null,
+    index: 1,
     photos: [
       {
         file: require('./assets/test1.jpg'),
@@ -99,8 +99,7 @@ export default new Vuex.Store({
       return _.cloneDeep(state.photos);
     },
     selectedPhoto(state) {
-      return state.selectedPhoto !== null ||
-        state.selectedPhoto < state.photos.length
+      return state.index !== null && state.index < state.photos.length
         ? state.photos[state.index]
         : null;
     },
@@ -131,7 +130,7 @@ export default new Vuex.Store({
         Size: `${pretty_size(photo.size)} (${photo.size})`,
         Dimensions: `${photo.width} x ${photo.height}`,
         time: new Date(photo.timestamp * 1000).toLocaleString(),
-        location: `(${photo.lat}, ${photo.lng})`,
+        location: `${pretty_gps(photo.lat, photo.lng)}`,
         Camera: `${photo.brand} (${photo.model})`,
         exposure: photo.exposure,
         iso: photo.iso,

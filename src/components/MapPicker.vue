@@ -1,13 +1,14 @@
 <template>
   <div>
     <div id="gmap"></div>
-    <div v-show="tilesLoaded" id="gmap-search">
+    <div v-show="loaded" id="gmap-search">
       <input type="text" placeholder="Enter a location" />
     </div>
   </div>
 </template>
 
 <script>
+import Vue from 'vue';
 import { mapActions } from 'vuex';
 
 export default {
@@ -33,8 +34,7 @@ export default {
       autocomplete: null,
       marker: null,
       scriptCreated: false,
-      mapLoaded: false,
-      tilesLoaded: false
+      loaded: false
     };
   },
   watch: {
@@ -62,8 +62,6 @@ export default {
       this.updateLocation(place.geometry.location.toJSON());
     },
     updateMap(loc) {
-      //if (!this.tilesLoaded) return;
-
       /* The location changed, so update the map to the new location */
       const marker_pos = this.marker.getPosition()
         ? this.marker.getPosition().toJSON()
@@ -146,20 +144,12 @@ export default {
       });
       this.autocomplete.addListener('place_changed', () => this.setPlace());
 
-      /* Update the map with the initial location */
-      this.updateMap(this.location);
-
       /* Add listeners for when google maps have loaded */
-      gm.event.addListenerOnce(
-        this.gmap,
-        'idle',
-        () => (this.mapLoaded = true)
-      );
-      gm.event.addListenerOnce(
-        this.gmap,
-        'tilesloaded',
-        () => (this.tilesLoaded = true)
-      );
+      gm.event.addListenerOnce(this.gmap, 'tilesloaded', () => {
+        this.loaded = true;
+        this.updateMap(this.location);
+        Vue.nextTick(() => this.$emit('loaded'));
+      });
     }
   }
 };
@@ -170,8 +160,14 @@ export default {
   height: 350px;
 }
 #gmap-search > input {
-  margin: 5px;
-  padding: 5px;
+  margin-top: 6px;
+  padding: 4.5px;
   width: 200px;
+  background: white;
+  color: #303030;
+  font-size: 14px;
+  border: none;
+  border-radius: 2px;
+  box-shadow: 1px 1px 1px 0px rgba(0, 0, 0, 0.1);
 }
 </style>

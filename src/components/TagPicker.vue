@@ -19,6 +19,7 @@
 </template>
 
 <script>
+import Vue from 'vue';
 import { mapActions } from 'vuex';
 import { mapGetters } from 'vuex';
 import BaseInputDropdown from '@/components/BaseInputDropdown.vue';
@@ -47,6 +48,9 @@ export default {
     placeholder() {
       return `Add ${this.tagType}...`;
     }
+  },
+  mounted() {
+    Vue.nextTick(() => this.$emit('loaded'));
   },
   methods: {
     ...mapActions(['setTag']),

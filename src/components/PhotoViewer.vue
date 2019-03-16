@@ -20,6 +20,7 @@
 </template>
 
 <script>
+import Vue from 'vue';
 import { mapActions } from 'vuex';
 import { mapGetters } from 'vuex';
 
@@ -37,6 +38,9 @@ export default {
         transform: `translate(${-this.scrollIdx * 100}px)`
       };
     }
+  },
+  mounted() {
+    Vue.nextTick(() => this.$emit('loaded'));
   },
   methods: {
     ...mapActions(['setPhoto']),
@@ -62,39 +66,39 @@ div.photo-viewer {
 
   &:hover div.photo-list {
     height: 100px;
-    cursor: pointer;
   }
 
   div.selected-photo {
     text-align: center;
-    width: 500px;
-    height: 450px;
+    width: 100%;
+    height: 449px;
     img {
-      width: 500px;
-      height: 450px;
+      width: 100%;
+      height: 100%;
+      border-radius: 5px;
       object-fit: contain;
     }
   }
 
   div.photo-list {
-    width: 500px;
+    width: 100%;
     height: 0;
     white-space: nowrap;
     overflow: hidden;
-    background: black;
     position: absolute;
     bottom: 0;
     transition: 0.5s;
+    cursor: pointer;
 
     img {
-      opacity: 0.5;
       transition: 0.5s;
-      width: 100px;
+      filter: brightness(50%);
+      width: 20%;
       height: 100px;
       object-fit: cover;
 
       &:hover {
-        opacity: 1;
+        filter: brightness(100%);
         transition: 0.2s;
         cursor: pointer;
       }
