@@ -129,23 +129,24 @@ export default new Vuex.Store({
       const summary = {
         Size: `${pretty_size(photo.size)} (${photo.size})`,
         Dimensions: `${photo.width} x ${photo.height}`,
-        time: new Date(photo.timestamp * 1000).toLocaleString(),
-        location: `${pretty_gps(photo.lat, photo.lng)}`,
+        Time: new Date(photo.timestamp * 1000).toLocaleString(),
+        Location: `${pretty_gps(photo.lat, photo.lng)}`,
         Camera: `${photo.brand} (${photo.model})`,
-        exposure: photo.exposure,
-        iso: photo.iso,
-        aperture: photo.aperture,
-        focal_length: photo.focal_length
+        Exposure: photo.exposure,
+        ISO: photo.iso,
+        Aperture: photo.aperture,
+        'Focal Length': photo.focal_length
       };
 
-      summary.tags = photo.tags
+      const tagList = photo.tags
         .filter(val => val.selected)
-        .map(val => val.name)
-        .join(', ');
-      summary.people = photo.people
+        .map(val => val.name);
+      const peopleList = photo.people
         .filter(val => val.selected)
-        .map(val => val.name)
-        .join(', ');
+        .map(val => val.name);
+      summary.Tags = `(${tagList.length}) ${tagList.join(', ')}`;
+      summary.People = `(${peopleList.length}) ${peopleList.join(', ')}`;
+
       return summary;
     }
   },
@@ -173,10 +174,10 @@ export default new Vuex.Store({
         }
       } else {
         /* Existing tag, so update it */
-        if (payload.selected) {
-          payload.list[idx].selected = true;
-        } else {
+        if (payload.selected === null) {
           payload.list.splice(idx, 1);
+        } else {
+          payload.list[idx].selected = payload.selected ? true : false;
         }
       }
     }
@@ -216,7 +217,6 @@ export default new Vuex.Store({
         payload.hasOwnProperty('selected') &&
         typeof payload.tagType === 'string' &&
         typeof payload.name === 'string' &&
-        typeof payload.selected === 'boolean' &&
         ['tags', 'people'].includes(payload.tagType)
       ) {
         context.commit('SET_TAG', {

@@ -31,4 +31,24 @@ export default {
 };
 </script>
 
-<style lang="scss" scoped></style>
+<style lang="scss" scoped>
+table {
+  border-collapse: collapse;
+
+  th {
+    text-align: left;
+    border-bottom: solid 1px;
+  }
+  td {
+    padding: 2px 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 330px;
+
+    &:first-child {
+      border-right: solid 1px;
+    }
+  }
+}
+</style>

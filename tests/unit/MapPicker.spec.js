@@ -124,6 +124,7 @@ describe('MapPicker.vue', () => {
       propsData: { location: loc, apiKey: '' },
       store
     });
+    wrapper.vm.updateMap(loc);
     expect(wrapper.vm.marker.loc).toEqual(loc);
     expect(wrapper.vm.gmap.center).toEqual({ lat: -26, lng: 135 });
     expect(wrapper.vm.gmap.zoom).toBeNull();
@@ -136,6 +137,7 @@ describe('MapPicker.vue', () => {
       propsData: { location: loc, apiKey: '' },
       store
     });
+    wrapper.vm.updateMap(loc);
     expect(wrapper.vm.marker.loc).toEqual(loc);
     expect(wrapper.vm.gmap.center).toEqual(loc);
     expect(wrapper.vm.gmap.zoom).toBeGreaterThan(0);

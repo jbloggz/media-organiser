@@ -4,15 +4,16 @@
       <BaseInputDropdown
         :list="tagOptions(tagType)"
         :placeholder="placeholder"
-        @selected="addTag"
+        @add="addTag"
       ></BaseInputDropdown>
     </div>
     <transition-group name="tag-transition">
       <BaseTag
-        v-for="tag in tagList"
+        v-for="tag in tags(tagType)"
         :key="tag.id"
         :tag="tag"
-        @click.native="tagClicked($event, tag)"
+        @toggle="toggleTag(tag)"
+        @remove="removeTag(tag)"
       ></BaseTag>
     </transition-group>
   </div>
@@ -36,15 +37,10 @@ export default {
       required: true,
       type: String,
       default: ''
-    },
-    tagList: {
-      required: true,
-      type: Array,
-      default: () => []
     }
   },
   computed: {
-    ...mapGetters(['tagOptions']),
+    ...mapGetters(['tagOptions', 'tags']),
     placeholder() {
       return `Add ${this.tagType}...`;
     }
@@ -54,7 +50,7 @@ export default {
   },
   methods: {
     ...mapActions(['setTag']),
-    tagClicked(event, tag) {
+    toggleTag(tag) {
       this.setTag({
         tagType: this.tagType,
         name: tag.name,
@@ -66,6 +62,13 @@ export default {
         tagType: this.tagType,
         name,
         selected: true
+      });
+    },
+    removeTag(tag) {
+      this.setTag({
+        tagType: this.tagType,
+        name: tag.name,
+        selected: null
       });
     }
   }

@@ -141,7 +141,7 @@ export default {
       this.preventCompletion = event.target.value.length > 0;
     },
     emitSelection(val) {
-      this.$emit('selected', val);
+      this.$emit('add', val);
       this.filteredList = [];
       this.$refs.input.value = '';
     },
@@ -165,12 +165,12 @@ export default {
 
 input {
   padding: 5px;
-  font-size: 16px;
 }
 
 .autocomplete-items {
+  color: var(--text-invert);
   text-align: left;
-  border: 1px solid #d4d4d4;
+  border: 1px solid var(--border);
   border-bottom: none;
   border-top: none;
   z-index: 99;
@@ -183,20 +183,12 @@ input {
   div {
     padding: 5px;
     cursor: pointer;
-    background-color: #fff;
-    border-bottom: 1px solid #d4d4d4;
+    background-color: var(--background-invert);
+    border-bottom: 1px solid var(--border);
 
-    &.autocomplete-active {
-      background-color: DodgerBlue;
-      color: #ffffff;
-    }
-
+    &.autocomplete-active,
     &:hover {
-      background-color: #e9e9e9;
-    }
-
-    span.highlight {
-      font-weight: bold;
+      background-color: var(--hover);
     }
   }
 }

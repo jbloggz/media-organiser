@@ -1,24 +1,31 @@
 <template>
   <div id="app">
-    <div id="header"></div>
+    <div id="header">
+      <div id="open-button" class="menu-button" title="Open Folder">
+        <span class="fas fa-folder-open"></span>
+      </div>
+      <div
+        v-if="selectedPhoto"
+        id="save-button"
+        class="menu-button"
+        title="Save Photo"
+      >
+        <span class="fas fa-save"></span>
+      </div>
+      <div id="settings-button" class="menu-button" title="Settings">
+        <span class="fas fa-sliders-h"></span>
+      </div>
+    </div>
     <div id="container">
       <div id="head-spacer"></div>
       <div id="photos" class="grid-item">
         <PhotoViewer @loaded="loaded.photo = true" />
       </div>
       <div id="tags" class="grid-item">
-        <TagPicker
-          :tag-list="tags('people')"
-          :tag-type="'people'"
-          @loaded="loaded.tags = true"
-        />
+        <TagPicker :tag-type="'people'" @loaded="loaded.tags = true" />
       </div>
       <div id="people" class="grid-item">
-        <TagPicker
-          :tag-list="tags('tags')"
-          :tag-type="'tags'"
-          @loaded="loaded.people = true"
-        />
+        <TagPicker :tag-type="'tags'" @loaded="loaded.people = true" />
       </div>
       <div id="map" class="grid-item">
         <MapPicker
@@ -65,7 +72,7 @@ export default {
     };
   },
   computed: {
-    ...mapGetters(['location', 'summary', 'tags']),
+    ...mapGetters(['location', 'summary', 'tags', 'selectedPhoto']),
     showLoader() {
       return !(
         this.loaded.photo &&
@@ -82,9 +89,12 @@ export default {
 <style lang="scss">
 :root {
   --background: #171819;
+  --background-invert: #d8d9da;
   --text: #d8d9da;
+  --text-invert: #303032;
   --component-background: #303032;
   --border: #404042;
+  --hover: white;
 }
 
 /* Apply a natural box layout model to all elements, but allowing components to change */
@@ -126,12 +136,39 @@ input {
 <style lang="scss" scoped>
 #app {
   #header {
-    height: 50px;
+    height: 43px;
     width: 100%;
     min-width: 500px;
     position: fixed;
     z-index: 100;
+    border-bottom-left-radius: 20px;
+    border-bottom-right-radius: 20px;
     background: var(--component-background);
+    border: solid 3px var(--border);
+    border-top: none;
+
+    .menu-button {
+      display: inline-block;
+      font-size: 20px;
+      width: 40px;
+      height: 40px;
+      line-height: 40px;
+      text-align: center;
+
+      &:hover {
+        background: var(--border);
+        cursor: pointer;
+      }
+    }
+
+    #open-button {
+      margin-left: 30px;
+    }
+
+    #settings-button {
+      position: absolute;
+      right: 30px;
+    }
   }
 
   div#container {
@@ -145,7 +182,7 @@ input {
 
     #head-spacer {
       grid-area: head-spacer;
-      height: 50px;
+      height: 43px;
     }
     #photos {
       grid-area: photos;

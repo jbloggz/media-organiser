@@ -319,7 +319,7 @@ describe('BaseInputDropdown.vue', () => {
     const input = wrapper.find('input');
     input.element.value = 'FooBar';
     input.trigger('keydown.enter');
-    expect(wrapper.emitted().selected[0]).toEqual(['FooBar']);
+    expect(wrapper.emitted().add[0]).toEqual(['FooBar']);
   });
 
   it('Clicks an existing value', () => {
@@ -337,7 +337,7 @@ describe('BaseInputDropdown.vue', () => {
       'Cura<span class="highlight">ca</span>o'
     );
     items.at(7).trigger('click');
-    expect(wrapper.emitted().selected[0]).toEqual(['Curacao']);
+    expect(wrapper.emitted().add[0]).toEqual(['Curacao']);
   });
 
   it('Selects an existing value by using the arrow keys', () => {
@@ -355,6 +355,6 @@ describe('BaseInputDropdown.vue', () => {
     const items = wrapper.findAll('div.autocomplete-items > div');
     expect(items.at(218).classes()).toEqual(['autocomplete-active']);
     input.trigger('keydown.enter');
-    expect(wrapper.emitted().selected[0]).toEqual(['Virgin Islands (US)']);
+    expect(wrapper.emitted().add[0]).toEqual(['Virgin Islands (US)']);
   });
 });

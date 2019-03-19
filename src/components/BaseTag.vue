@@ -1,6 +1,9 @@
 <template>
-  <div class="base-tag" :class="classes">
-    {{ tag.name }}
+  <div class="base-tag" :class="classes" @click="$emit('toggle')">
+    <span v-if="tag.selected"><i class="fas fa-check"></i></span> {{ tag.name }}
+    <span @click.stop="$emit('remove')"
+      ><i class="fas fa-times fa-sm" title="Delete"></i
+    ></span>
   </div>
 </template>
 
@@ -27,38 +30,47 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-div {
+div.base-tag {
+  position: relative;
   display: inline-block;
-  color: #333;
-  background-color: #fff;
+  color: var(--text-invert);
+  background-color: var(--text);
+  border: 1px solid var(--border);
+  opacity: 0.4;
   margin: 5px;
   font-weight: 400;
   text-align: center;
   white-space: nowrap;
   vertical-align: middle;
   cursor: pointer;
-  border: 1px solid #ccc;
-  padding: 6px 12px;
+  padding: 6px 15px;
   font-size: 14px;
   line-height: 1.42857143;
   border-radius: 4px;
   user-select: none;
 
-  &.selected {
-    color: #fff;
-    background-color: #5cb85c;
-    border-color: #4cae4c;
+  .fa-times {
+    display: none;
 
     &:hover {
-      background-color: #449d44;
-      border-color: #398439;
+      color: var(--border);
+    }
+  }
+
+  &.selected {
+    opacity: 1;
+    &:hover {
+      background-color: var(--hover);
     }
   }
 
   &:hover {
-    color: #333;
-    background-color: #e6e6e6;
-    border-color: #adadad;
+    .fa-times {
+      display: block;
+      position: absolute;
+      top: 2px;
+      right: 4px;
+    }
   }
 }
 </style>
