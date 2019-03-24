@@ -2,6 +2,7 @@
   <div ref="container" class="autocomplete">
     <input
       ref="input"
+      class="txt-input"
       type="text"
       :placeholder="placeholder"
       autocomplete="off"

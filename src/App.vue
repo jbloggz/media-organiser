@@ -1,20 +1,10 @@
 <template>
   <div id="app">
+    <BaseLoader :show="showLoader" background="#000000" />
     <div id="header">
-      <div id="open-button" class="menu-button" title="Open Folder">
-        <span class="fas fa-folder-open"></span>
-      </div>
-      <div
-        v-if="selectedPhoto"
-        id="save-button"
-        class="menu-button"
-        title="Save Photo"
-      >
-        <span class="fas fa-save"></span>
-      </div>
-      <div id="settings-button" class="menu-button" title="Settings">
-        <span class="fas fa-sliders-h"></span>
-      </div>
+      <OpenButton />
+      <SaveButton />
+      <SettingsButton @themeChanged="setTheme" />
     </div>
     <div id="container">
       <div id="head-spacer"></div>
@@ -30,7 +20,7 @@
       <div id="map" class="grid-item">
         <MapPicker
           :location="location"
-          :api-key="''"
+          :api-key="apiKey"
           @loaded="loaded.map = true"
         />
       </div>
@@ -38,7 +28,6 @@
         <AttributeViewer :data="summary" @loaded="loaded.summary = true" />
       </div>
     </div>
-    <BaseLoader v-if="showLoader" />
   </div>
 </template>
 
@@ -47,6 +36,9 @@ import { mapGetters } from 'vuex';
 
 import MapPicker from '@/components/MapPicker.vue';
 import BaseLoader from '@/components/BaseLoader.vue';
+import OpenButton from '@/components/OpenButton.vue';
+import SaveButton from '@/components/SaveButton.vue';
+import SettingsButton from '@/components/SettingsButton.vue';
 import TagPicker from '@/components/TagPicker.vue';
 import AttributeViewer from '@/components/AttributeViewer.vue';
 import PhotoViewer from '@/components/PhotoViewer.vue';
@@ -56,6 +48,9 @@ export default {
   components: {
     MapPicker,
     BaseLoader,
+    SettingsButton,
+    OpenButton,
+    SaveButton,
     TagPicker,
     AttributeViewer,
     PhotoViewer
@@ -81,6 +76,32 @@ export default {
         this.loaded.map &&
         this.loaded.summary
       );
+    },
+    apiKey() {
+      return localStorage.apiKey;
+    }
+  },
+  mounted() {
+    if (localStorage.theme) {
+      this.setTheme(localStorage.theme);
+    }
+  },
+  methods: {
+    setTheme(theme) {
+      let root = window.document.documentElement;
+      root.style.setProperty('--background', `var(--${theme}-background`);
+      root.style.setProperty(
+        '--background-invert',
+        `var(--${theme}-background-invert`
+      );
+      root.style.setProperty('--text', `var(--${theme}-text`);
+      root.style.setProperty('--text-invert', `var(--${theme}-text-invert`);
+      root.style.setProperty(
+        '--component-background',
+        `var(--${theme}-component-background`
+      );
+      root.style.setProperty('--border', `var(--${theme}-border`);
+      root.style.setProperty('--hover', `var(--${theme}-hover`);
     }
   }
 };
@@ -88,13 +109,32 @@ export default {
 
 <style lang="scss">
 :root {
-  --background: #171819;
-  --background-invert: #d8d9da;
-  --text: #d8d9da;
-  --text-invert: #303032;
-  --component-background: #303032;
-  --border: #404042;
-  --hover: white;
+  /* Dark theme */
+  --dark-background: #171819;
+  --dark-background-invert: #d8d9da;
+  --dark-text: #d8d9da;
+  --dark-text-invert: #303032;
+  --dark-component-background: #303032;
+  --dark-border: #404042;
+  --dark-hover: white;
+
+  /* Dark theme */
+  --light-background: #d8d9da;
+  --light-background-invert: #171819;
+  --light-text: #303032;
+  --light-text-invert: #d8d9da;
+  --light-component-background: #d0d0d2;
+  --light-border: #a0a0a2;
+  --light-hover: white;
+
+  /* Default to dark */
+  --background: var(--dark-background);
+  --background-invert: var(--dark-background-invert);
+  --text: var(--dark-text);
+  --text-invert: var(--dark-text-invert);
+  --component-background: var(--dark-component-background);
+  --border: var(--dark-border);
+  --hover: var(--dark-hover);
 }
 
 /* Apply a natural box layout model to all elements, but allowing components to change */
@@ -112,7 +152,7 @@ body {
   background-color: var(--background);
 }
 
-input {
+input.txt-input {
   background: var(--background);
   color: var(--text);
   border: 1px solid var(--border);
@@ -131,6 +171,20 @@ input {
   font-size: 18px;
   line-height: 1.5;
 }
+
+#header .menu-button {
+  display: inline-block;
+  font-size: 20px;
+  width: 40px;
+  height: 40px;
+  line-height: 40px;
+  text-align: center;
+
+  &:hover {
+    background: var(--border);
+    cursor: pointer;
+  }
+}
 </style>
 
 <style lang="scss" scoped>
@@ -146,29 +200,6 @@ input {
     background: var(--component-background);
     border: solid 3px var(--border);
     border-top: none;
-
-    .menu-button {
-      display: inline-block;
-      font-size: 20px;
-      width: 40px;
-      height: 40px;
-      line-height: 40px;
-      text-align: center;
-
-      &:hover {
-        background: var(--border);
-        cursor: pointer;
-      }
-    }
-
-    #open-button {
-      margin-left: 30px;
-    }
-
-    #settings-button {
-      position: absolute;
-      right: 30px;
-    }
   }
 
   div#container {
