@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="map-picker">
     <div id="gmap"></div>
     <div v-show="loaded" id="gmap-search">
       <input type="text" placeholder="Enter a location" />
@@ -16,16 +16,13 @@ export default {
   props: {
     location: {
       required: true,
-      default() {
-        return null;
-      },
       validator(val) {
         return val === null || ('lat' in val && 'lng' in val);
       }
     },
     apiKey: {
-      required: true,
-      type: String
+      type: String,
+      required: true
     }
   },
   data() {
@@ -39,7 +36,7 @@ export default {
   },
   watch: {
     location(loc) {
-      this.updateMap(loc);
+      if (this.loaded) this.updateMap(loc);
     }
   },
   mounted() {

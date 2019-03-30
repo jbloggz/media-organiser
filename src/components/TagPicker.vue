@@ -1,91 +1,92 @@
 <template>
-  <div>
-    <div>
-      <BaseInputDropdown
-        :list="tagOptions(tagType)"
-        :placeholder="placeholder"
-        @add="addTag"
-      ></BaseInputDropdown>
-    </div>
-    <transition-group name="tag-transition">
-      <BaseTag
-        v-for="tag in tags(tagType)"
-        :key="tag.id"
-        :tag="tag"
-        @toggle="toggleTag(tag)"
-        @remove="removeTag(tag)"
-      ></BaseTag>
-    </transition-group>
+  <div class="tag-picker">
+    <v-combobox
+      v-model="items"
+      :items="tagOptions(type)"
+      :placeholder="`Add ${type}...`"
+      :prepend-inner-icon="icon"
+      chips
+      clearable
+      deletable-chips
+      multiple
+      class="mt-0"
+      @input="syncTags"
+    />
+    <v-card-title class="pa-0 pb-1">
+      <h3>Suggested {{ type }}</h3>
+    </v-card-title>
+    <v-chip
+      v-for="tag in suggestedTags(type)"
+      :key="tag"
+      :value="!items.includes(tag)"
+      class="suggested-tags"
+      @click="addTag(tag)"
+    >
+      {{ tag }}
+    </v-chip>
   </div>
 </template>
 
 <script>
-import Vue from 'vue';
 import { mapActions } from 'vuex';
 import { mapGetters } from 'vuex';
-import BaseInputDropdown from '@/components/BaseInputDropdown.vue';
-import BaseTag from '@/components/BaseTag.vue';
 
 export default {
   name: 'TagPicker',
-  components: {
-    BaseInputDropdown,
-    BaseTag
-  },
   props: {
-    tagType: {
+    icon: {
       required: true,
-      type: String,
-      default: ''
+      type: String
+    },
+    type: {
+      required: true,
+      type: String
     }
+  },
+  data() {
+    return {
+      items: []
+    };
   },
   computed: {
-    ...mapGetters(['tagOptions', 'tags']),
-    placeholder() {
-      return `Add ${this.tagType}...`;
+    ...mapGetters(['tags', 'suggestedTags', 'tagOptions']),
+    newTags() {
+      return this.tags(this.type);
     }
   },
-  mounted() {
-    Vue.nextTick(() => this.$emit('loaded'));
+  watch: {
+    newTags: {
+      immediate: true,
+      handler(value) {
+        this.items = value;
+      }
+    }
   },
   methods: {
-    ...mapActions(['setTag']),
-    toggleTag(tag) {
-      this.setTag({
-        tagType: this.tagType,
-        name: tag.name,
-        selected: !tag.selected
-      });
-    },
+    ...mapActions(['updateTags']),
     addTag(name) {
-      this.setTag({
-        tagType: this.tagType,
-        name,
-        selected: true
-      });
+      if (!this.items.includes(name)) {
+        this.syncTags([...this.items, name]);
+      }
     },
-    removeTag(tag) {
-      this.setTag({
-        tagType: this.tagType,
-        name: tag.name,
-        selected: null
-      });
+    syncTags(list) {
+      this.updateTags({ type: this.type, list });
     }
   }
 };
 </script>
 
-<style lang="scss" scoped>
-/* Vue transition classes, applied to the BaseTag root node */
-div.base-tag {
-  transition: all 0.4s;
-
-  &.tag-transition-enter,
-  &.tag-transition-leave-to {
-    opacity: 0;
+<style lang="scss">
+.tag-picker {
+  .suggested-tags {
+    .v-chip__content {
+      cursor: pointer;
+    }
   }
-  &.tag-transition-leave-active {
-    display: none;
+
+  .v-input__prepend-inner {
+    margin-top: 7px;
+    margin-right: 7px;
   }
 }
 </style>

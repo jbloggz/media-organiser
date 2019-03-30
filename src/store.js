@@ -7,7 +7,7 @@ Vue.use(Vuex);
 
 export default new Vuex.Store({
   state: {
-    index: 1,
+    index: null,
     photos: [
       {
         file: require('./assets/test1.jpg'),
@@ -23,16 +23,8 @@ export default new Vuex.Store({
         iso: 213,
         aperture: 1.4,
         focal_length: 55,
-        people: [
-          { id: 12, name: 'Josef Barnes', selected: true },
-          { id: 13, name: 'Katie Barnes', selected: true },
-          { id: 14, name: 'Ivy Barnes', selected: false }
-        ],
-        tags: [
-          { id: 15, name: 'happy', selected: true },
-          { id: 16, name: 'ocean', selected: true },
-          { id: 17, name: 'beach', selected: false }
-        ]
+        people: ['Josef Barnes', 'Katie Barnes', 'Ivy Barnes'],
+        tags: ['happy', 'ocean', 'beach']
       },
       {
         file: require('./assets/test2.jpg'),
@@ -48,15 +40,8 @@ export default new Vuex.Store({
         iso: 1000,
         aperture: 3.5,
         focal_length: 18,
-        people: [
-          { id: 1, name: 'Dexter Barnes', selected: true },
-          { id: 2, name: 'Hayley Darke', selected: true }
-        ],
-        tags: [
-          { id: 3, name: 'animal', selected: true },
-          { id: 4, name: 'dog', selected: false },
-          { id: 5, name: 'woman', selected: false }
-        ]
+        people: ['Dexter Barnes', 'Hayley Darke'],
+        tags: ['animal', 'dog', 'woman']
       },
       {
         file: require('./assets/test3.jpg'),
@@ -72,16 +57,8 @@ export default new Vuex.Store({
         iso: 12600,
         aperture: 2.8,
         focal_length: 35,
-        people: [
-          { id: 6, name: 'Ivy Barnes', selected: true },
-          { id: 7, name: 'Molly Barnes', selected: false },
-          { id: 8, name: 'Dexter Barnes', selected: true }
-        ],
-        tags: [
-          { id: 9, name: 'baby', selected: false },
-          { id: 10, name: 'animal', selected: true },
-          { id: 11, name: 'tree', selected: false }
-        ]
+        people: ['Ivy Barnes', 'Molly Barnes', 'Dexter Barnes'],
+        tags: ['baby', 'animal', 'tree']
       }
     ],
     tags: ['animal', 'baby', 'beach', 'dog', 'happy', 'ocean', 'tree', 'woman'],
@@ -98,6 +75,9 @@ export default new Vuex.Store({
     photos(state) {
       return _.cloneDeep(state.photos);
     },
+    selectedIndex(state) {
+      return state.index;
+    },
     selectedPhoto(state) {
       return state.index !== null && state.index < state.photos.length
         ? state.photos[state.index]
@@ -112,21 +92,25 @@ export default new Vuex.Store({
           }
         : null;
     },
-    tags: (state, getters) => tagType => {
+    tags: (state, getters) => type => {
       const photo = getters.selectedPhoto;
-      return photo && ['tags', 'people'].includes(tagType)
-        ? _.cloneDeep(photo[tagType])
+      return photo && ['tags', 'people'].includes(type)
+        ? _.cloneDeep(photo[type])
         : [];
     },
-    tagOptions: state => tagType => {
-      return ['tags', 'people'].includes(tagType)
-        ? _.cloneDeep(state[tagType])
+    tagOptions: state => type => {
+      return ['tags', 'people'].includes(type) ? _.cloneDeep(state[type]) : [];
+    },
+    suggestedTags: () => type => {
+      return ['tags', 'people'].includes(type)
+        ? ['foo_' + type, 'bar_' + type]
         : [];
     },
     summary(state, getters) {
       const photo = getters.selectedPhoto;
       if (!photo) return {};
-      const summary = {
+
+      return {
         Size: `${pretty_size(photo.size)} (${photo.size})`,
         Dimensions: `${photo.width} x ${photo.height}`,
         Time: new Date(photo.timestamp * 1000).toLocaleString(),
@@ -135,19 +119,10 @@ export default new Vuex.Store({
         Exposure: photo.exposure,
         ISO: photo.iso,
         Aperture: photo.aperture,
-        'Focal Length': photo.focal_length
+        'Focal Length': photo.focal_length,
+        Tags: `(${photo.tags.length}) ${photo.tags.join(', ')}`,
+        People: `(${photo.people.length}) ${photo.people.join(', ')}`
       };
-
-      const tagList = photo.tags
-        .filter(val => val.selected)
-        .map(val => val.name);
-      const peopleList = photo.people
-        .filter(val => val.selected)
-        .map(val => val.name);
-      summary.Tags = `(${tagList.length}) ${tagList.join(', ')}`;
-      summary.People = `(${peopleList.length}) ${peopleList.join(', ')}`;
-
-      return summary;
     }
   },
   mutations: {
@@ -158,28 +133,8 @@ export default new Vuex.Store({
       payload.photo.lat = payload.lat;
       payload.photo.lng = payload.lng;
     },
-    SET_TAG(state, payload) {
-      const idx = payload.list.findIndex(val => {
-        return val.name == payload.name;
-      });
-      if (idx == -1) {
-        /* New tag, so add it */
-        payload.list.unshift({
-          id: `${payload.photo.file}-${payload.tagType}-${payload.name}`,
-          name: payload.name,
-          selected: payload.selected
-        });
-        if (!state[payload.tagType].includes(payload.name)) {
-          state[payload.tagType].unshift(payload.name);
-        }
-      } else {
-        /* Existing tag, so update it */
-        if (payload.selected === null) {
-          payload.list.splice(idx, 1);
-        } else {
-          payload.list[idx].selected = payload.selected ? true : false;
-        }
-      }
+    SET_TAGS(state, payload) {
+      payload.photo[payload.type] = payload.list.sort();
     }
   },
   actions: {
@@ -204,27 +159,22 @@ export default new Vuex.Store({
       if (context.state.photos[index]) context.commit('SET_PHOTO', index);
       else context.commit('SET_PHOTO', null);
     },
-    setTag(context, payload) {
+    updateTags(context, payload) {
       const photo = context.getters.selectedPhoto;
 
       /* Do some hardcore validation before letting this through */
       if (
-        photo &&
-        payload &&
-        typeof payload === 'object' &&
-        payload.hasOwnProperty('tagType') &&
-        payload.hasOwnProperty('name') &&
-        payload.hasOwnProperty('selected') &&
-        typeof payload.tagType === 'string' &&
-        typeof payload.name === 'string' &&
-        ['tags', 'people'].includes(payload.tagType)
+        payload.hasOwnProperty('type') &&
+        typeof payload.type === 'string' &&
+        ['tags', 'people'].includes(payload.type) &&
+        payload.hasOwnProperty('list') &&
+        Array.isArray(payload.list) &&
+        payload.list.every(tag => typeof tag === 'string')
       ) {
-        context.commit('SET_TAG', {
+        context.commit('SET_TAGS', {
           photo,
-          list: photo[payload.tagType],
-          tagType: payload.tagType,
-          name: payload.name,
-          selected: payload.selected
+          type: payload.type,
+          list: payload.list
         });
       }
     }

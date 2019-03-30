@@ -1,22 +1,13 @@
 <template>
-  <table>
-    <thead>
-      <tr>
-        <th colspan="2">Summary</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr v-for="(val, key, index) in data" :key="index">
-        <td>{{ key }}</td>
-        <td>{{ val }}</td>
-      </tr>
-    </tbody>
-  </table>
+  <v-data-table hide-actions hide-headers :items="items">
+    <template v-slot:items="props">
+      <td>{{ props.item[0] }}</td>
+      <td>{{ props.item[1] }}</td>
+    </template>
+  </v-data-table>
 </template>
 
 <script>
-import Vue from 'vue';
-
 export default {
   name: 'AttributeViewer',
   props: {
@@ -25,30 +16,26 @@ export default {
       type: Object
     }
   },
-  mounted() {
-    Vue.nextTick(() => this.$emit('loaded'));
+  data() {
+    return {
+      headers: [{ text: 'Summary', sortable: false }, { sortable: false }]
+    };
+  },
+  computed: {
+    items() {
+      return Object.keys(this.data).map(key => [key, this.data[key]]);
+    }
   }
 };
 </script>
 
 <style lang="scss" scoped>
-table {
-  border-collapse: collapse;
-
-  th {
-    text-align: left;
-    border-bottom: solid 1px;
-  }
-  td {
-    padding: 2px 10px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 330px;
-
-    &:first-child {
-      border-right: solid 1px;
-    }
-  }
+table.v-table tbody td {
+  height: 30px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 400px;
+  padding-right: 0px;
 }
 </style>

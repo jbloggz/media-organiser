@@ -49,7 +49,9 @@ describe('MapPicker.vue', () => {
           }
         },
         event: {
-          addListenerOnce: jest.fn()
+          addListenerOnce(mp, name, cback) {
+            cback();
+          }
         },
         places: {
           Autocomplete: class Autocomplete {
