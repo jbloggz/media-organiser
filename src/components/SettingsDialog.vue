@@ -1,8 +1,17 @@
 <template>
-  <v-dialog :value="!initialised" persistent max-width="600px">
+  <v-dialog v-model="dialog" max-width="600px">
+    <template v-slot:activator="{ on }">
+      <v-btn icon v-on="on">
+        <v-icon>settings</v-icon>
+      </v-btn>
+    </template>
     <v-card>
       <v-card-title>
-        <span class="headline">Welcome!</span>
+        <span class="headline">Settings!</span>
+        <v-spacer></v-spacer>
+        <v-btn icon @click="dialog = false">
+          <v-icon>close</v-icon>
+        </v-btn>
       </v-card-title>
       <v-form ref="form" @submit.prevent="submit">
         <v-card-text>
@@ -11,8 +20,9 @@
           <v-text-field
             v-model="key"
             :rules="rules"
-            class="mt-3"
             label="API Key"
+            class="mt-3"
+            @focus="warn = true"
           ></v-text-field>
           <v-switch
             v-model="isDark"
@@ -21,9 +31,13 @@
           ></v-switch>
         </v-card-text>
         <v-card-actions class="px-3 pb-3">
-          <v-layout justify-end>
+          <v-layout align-center>
+            <span v-if="warn" class="warning--text pr-4">
+              WARNING: Changing the API Key will reload the App
+            </span>
+            <v-spacer></v-spacer>
             <v-btn type="submit" flat>
-              Start
+              Save
             </v-btn>
           </v-layout>
         </v-card-actions>
@@ -34,22 +48,14 @@
 
 <script>
 export default {
-  name: 'WelcomeDialog',
-  model: {
-    prop: 'initialised',
-    event: 'initialised'
-  },
-  props: {
-    initialised: {
-      type: Boolean,
-      required: true
-    }
-  },
+  name: 'SettingsDialog',
   data() {
     return {
-      key: null,
+      key: localStorage.apiKey,
       isDark: localStorage.theme === 'dark',
-      rules: [v => (v && v.length >= 20) || 'Invalid Key']
+      rules: [v => (v && v.length >= 20) || 'Invalid Key'],
+      warn: false,
+      dialog: false
     };
   },
   computed: {
@@ -60,11 +66,17 @@ export default {
   methods: {
     submit() {
       if (this.$refs.form.validate()) {
+        const oldKey = localStorage.apiKey;
         localStorage.apiKey = this.key;
         localStorage.theme = this.theme;
-        this.$emit('initialised', true);
+        if (oldKey !== this.key) {
+          window.location.reload();
+        } else {
+          this.dialog = false;
+        }
       }
-    }
+    },
+    warnApiKey() {}
   }
 };
 </script>

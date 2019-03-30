@@ -1,7 +1,7 @@
 <template>
   <v-app :dark="theme === 'dark'">
     <template v-if="initialised">
-      <v-toolbar app dark color="primary">
+      <v-toolbar app dense dark color="primary">
         <v-btn icon>
           <v-icon>folder</v-icon>
         </v-btn>
@@ -10,9 +10,7 @@
         <v-btn icon>
           <v-icon>save</v-icon>
         </v-btn>
-        <v-btn icon>
-          <v-icon>settings</v-icon>
-        </v-btn>
+        <SettingsDialog @theme="changeTheme" />
         <v-btn icon>
           <v-icon>help</v-icon>
         </v-btn>
@@ -29,13 +27,15 @@
 
 <script>
 import WelcomeDialog from '@/components/WelcomeDialog.vue';
+import SettingsDialog from '@/components/SettingsDialog.vue';
 import LoaderDialog from '@/components/LoaderDialog.vue';
 
 export default {
   name: 'App',
   components: {
     LoaderDialog,
-    WelcomeDialog
+    WelcomeDialog,
+    SettingsDialog
   },
   data() {
     return {
