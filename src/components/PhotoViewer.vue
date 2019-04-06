@@ -2,6 +2,7 @@
   <v-carousel
     v-if="getFiles.length"
     :cycle="false"
+    :light="theme === 'light'"
     hide-delimiters
     height="450"
     @change="change"
@@ -25,6 +26,12 @@ import { mapGetters } from 'vuex';
 
 export default {
   name: 'PhotoViewer',
+  props: {
+    theme: {
+      type: String,
+      required: true
+    }
+  },
   data() {
     return {
       idx: null

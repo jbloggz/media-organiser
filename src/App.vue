@@ -13,7 +13,7 @@
       </v-toolbar>
 
       <v-content>
-        <router-view></router-view>
+        <router-view :theme="theme"></router-view>
       </v-content>
     </template>
     <WelcomeDialog v-model="initialised" @theme="changeTheme" />

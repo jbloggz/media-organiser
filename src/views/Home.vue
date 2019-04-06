@@ -4,7 +4,7 @@
       <v-flex d-flex xs12 lg6>
         <v-layout column>
           <v-card class="ma-1">
-            <PhotoViewer />
+            <PhotoViewer :theme="theme" />
           </v-card>
           <v-card class="ma-1">
             <MapPicker
@@ -55,6 +55,12 @@ export default {
     TagPicker,
     AttributeViewer,
     PhotoViewer
+  },
+  props: {
+    theme: {
+      type: String,
+      required: true
+    }
   },
   data() {
     return {
