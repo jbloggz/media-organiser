@@ -1,14 +1,20 @@
 <template>
-  <v-carousel :cycle="false" hide-delimiters height="450" @change="changePhoto">
+  <v-carousel
+    v-if="getFiles.length"
+    :cycle="false"
+    hide-delimiters
+    height="450"
+    @change="change"
+  >
     <v-carousel-item
-      v-for="(photo, index) in photos"
+      v-for="(file, index) in getFiles"
       :key="index"
-      :src="photo.file"
+      :src="file"
       contain
     >
     </v-carousel-item>
     <v-chip small disabled color="#616161a0" class="ma-3">
-      {{ idx + 1 }}/{{ photos.length }}
+      {{ idx + 1 }}/{{ getFiles.length }}
     </v-chip>
   </v-carousel>
 </template>
@@ -25,13 +31,13 @@ export default {
     };
   },
   computed: {
-    ...mapGetters(['photos'])
+    ...mapGetters(['getFiles'])
   },
   methods: {
-    ...mapActions(['setPhoto']),
-    changePhoto(index) {
+    ...mapActions(['changePhoto']),
+    change(index) {
       this.idx = index;
-      this.setPhoto(index);
+      this.changePhoto(index);
     }
   }
 };

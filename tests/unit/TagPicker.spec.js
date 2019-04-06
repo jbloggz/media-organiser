@@ -25,11 +25,11 @@ describe('TagPicker.vue', () => {
         tags: ['baby', 'animal', 'tree']
       },
       getters: {
-        tagOptions: () => mockTagOptions,
-        tags: state => () => {
+        getTagOptions: () => mockTagOptions,
+        getTags: state => () => {
           return state.tags;
         },
-        suggestedTags: () => mockSuggestedTags
+        getSuggestedTags: () => mockSuggestedTags
       },
       actions: {
         setTag: jest.fn()

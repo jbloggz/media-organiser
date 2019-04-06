@@ -1,27 +1,24 @@
 <template>
   <v-dialog v-model="dialog" max-width="600px">
     <template v-slot:activator="{ on }">
-      <v-btn icon v-on="on">
-        <v-icon>settings</v-icon>
+      <v-btn icon title="Settings" v-on="on">
+        <v-icon>mdi-settings</v-icon>
       </v-btn>
     </template>
     <v-card>
       <v-card-title>
-        <span class="headline">Settings!</span>
+        <span class="headline">Settings</span>
         <v-spacer></v-spacer>
         <v-btn icon @click="dialog = false">
-          <v-icon>close</v-icon>
+          <v-icon>mdi-close</v-icon>
         </v-btn>
       </v-card-title>
       <v-form ref="form" @submit.prevent="submit">
         <v-card-text>
-          Welcome to the Photo Organiser web app! To get started, please enter a
-          valid Google Maps API Key:
           <v-text-field
             v-model="key"
             :rules="rules"
             label="API Key"
-            class="mt-3"
             @focus="warn = true"
           ></v-text-field>
           <v-switch

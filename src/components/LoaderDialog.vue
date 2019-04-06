@@ -1,16 +1,12 @@
 <template>
-  <v-dialog :value="true" :content-class="classes" fullscreen persistent>
-    <v-container fill-height>
-      <v-layout row justify-center align-center>
-        <v-progress-circular
-          color="primary"
-          indeterminate
-          :size="70"
-          :width="7"
-        ></v-progress-circular>
-      </v-layout>
-    </v-container>
-  </v-dialog>
+  <v-layout row justify-center align-center :class="classes" class="progress">
+    <v-progress-circular
+      color="primary"
+      indeterminate
+      :size="70"
+      :width="7"
+    ></v-progress-circular>
+  </v-layout>
 </template>
 
 <script>
@@ -27,10 +23,20 @@ export default {
 </script>
 
 <style lang="scss">
-.loading-dialog-dark {
-  background-color: #303030;
-}
-.loading-dialog-light {
-  background-color: #ffffff;
+.progress {
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  z-index: 1;
+
+  &.loading-dialog-dark {
+    background-color: #303030;
+  }
+
+  &.loading-dialog-light {
+    background-color: #ffffff;
+  }
 }
 </style>

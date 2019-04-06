@@ -2,7 +2,7 @@
   <div class="tag-picker">
     <v-combobox
       v-model="items"
-      :items="tagOptions(type)"
+      :items="getTagOptions(type)"
       :placeholder="`Add ${type}...`"
       :prepend-inner-icon="icon"
       chips
@@ -16,7 +16,7 @@
       <h3>Suggested {{ type }}</h3>
     </v-card-title>
     <v-chip
-      v-for="tag in suggestedTags(type)"
+      v-for="tag in getSuggestedTags(type)"
       :key="tag"
       :value="!items.includes(tag)"
       class="suggested-tags"
@@ -49,9 +49,9 @@ export default {
     };
   },
   computed: {
-    ...mapGetters(['tags', 'suggestedTags', 'tagOptions']),
+    ...mapGetters(['getTags', 'getSuggestedTags', 'getTagOptions']),
     newTags() {
-      return this.tags(this.type);
+      return this.getTags(this.type);
     }
   },
   watch: {

@@ -154,7 +154,7 @@ export default {
 
 <style lang="scss">
 #gmap {
-  height: 400px;
+  height: 450px;
 }
 #gmap-search > input {
   margin-top: 6px;
