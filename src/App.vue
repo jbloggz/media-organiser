@@ -1,11 +1,21 @@
 <template>
   <v-app :dark="theme === 'dark'">
-    <template v-if="initialised">
+    <WelcomeDialog v-model="showWelcome" @theme="changeTheme" />
+    <template v-if="!showWelcome">
       <v-toolbar app dense dark color="primary">
         <OpenDialog @click="snack.show = false" />
-        <v-toolbar-title>Photo Organiser</v-toolbar-title>
+        <v-toolbar-title>
+          Photo Organiser
+          <span v-if="selectedFile"> - {{ selectedFile }}</span>
+        </v-toolbar-title>
         <v-spacer></v-spacer>
-        <v-btn icon title="Save" :loading="saving" @click="save">
+        <v-btn
+          v-if="selectedFile"
+          icon
+          title="Save"
+          :loading="saving"
+          @click="save"
+        >
           <v-icon>mdi-content-save</v-icon>
         </v-btn>
         <SettingsDialog @theme="changeTheme" />
@@ -16,7 +26,6 @@
         <router-view :theme="theme"></router-view>
       </v-content>
     </template>
-    <WelcomeDialog v-model="initialised" @theme="changeTheme" />
     <v-snackbar
       v-model="snack.show"
       :timeout="snack.timeout"
@@ -50,7 +59,8 @@ export default {
   },
   data() {
     return {
-      initialised: !!localStorage.apiKey,
+      showWelcome: !(localStorage.apiKey && localStorage.outputPath),
+      showSettings: false,
       saving: false,
       theme: localStorage.theme ? localStorage.theme : 'dark',
       snack: {
@@ -62,20 +72,27 @@ export default {
     };
   },
   computed: {
-    ...mapGetters(['getFiles'])
+    ...mapGetters(['getFiles', 'getPhoto']),
+    selectedFile() {
+      return this.getPhoto
+        ? this.getPhoto.file.substring(this.getPhoto.file.lastIndexOf('/') + 1)
+        : null;
+    }
   },
   watch: {
-    initialised: {
+    showWelcome: {
       immediate: true,
       handler() {
         /* After the app is initialised, display the snackbar */
-        setTimeout(() => {
-          this.showSnackbar(
-            null,
-            0,
-            "To begin, click the 'Open' button on the top left"
-          );
-        }, 1000);
+        if (!this.showWelcome) {
+          setTimeout(() => {
+            this.showSnackbar(
+              null,
+              0,
+              "To begin, click the 'Open' button on the top left"
+            );
+          }, 1000);
+        }
       }
     }
   },

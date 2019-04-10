@@ -1,70 +1,48 @@
 <template>
-  <v-dialog :value="!initialised" persistent max-width="600px">
+  <v-dialog :value="show" persistent max-width="600px">
     <v-card>
       <v-card-title>
         <span class="headline">Welcome!</span>
       </v-card-title>
-      <v-form ref="form" @submit.prevent="submit">
-        <v-card-text>
+      <v-card-text>
+        <p>
           Welcome to the Photo Organiser web app! To get started, please enter a
-          valid Google Maps API Key:
-          <v-text-field
-            v-model="key"
-            :rules="rules"
-            class="mt-3"
-            label="API Key"
-          ></v-text-field>
-          <v-switch
-            v-model="isDark"
-            :label="isDark ? 'Dark Theme' : 'Light Theme'"
-            @change="$emit('theme', theme)"
-          ></v-switch>
-        </v-card-text>
-        <v-card-actions class="px-3 pb-3">
-          <v-layout justify-end>
-            <v-btn type="submit" flat>
-              Start
-            </v-btn>
-          </v-layout>
-        </v-card-actions>
-      </v-form>
+          valid Google Maps API Key and an output folder for saving photos:
+        </p>
+        <SettingsForm
+          button="Start"
+          @submit="$emit('show', false)"
+          @theme="$emit('theme', $event)"
+        />
+      </v-card-text>
     </v-card>
   </v-dialog>
 </template>
 
 <script>
+import SettingsForm from '@/components/SettingsForm.vue';
+
 export default {
   name: 'WelcomeDialog',
+  components: {
+    SettingsForm
+  },
   model: {
-    prop: 'initialised',
-    event: 'initialised'
+    prop: 'show',
+    event: 'show'
   },
   props: {
-    initialised: {
+    show: {
       type: Boolean,
-      required: true
-    }
-  },
-  data() {
-    return {
-      key: null,
-      isDark: localStorage.theme === 'dark',
-      rules: [v => (v && v.length >= 20) || 'Invalid Key']
-    };
-  },
-  computed: {
-    theme() {
-      return this.isDark ? 'dark' : 'light';
-    }
-  },
-  methods: {
-    submit() {
-      if (this.$refs.form.validate()) {
-        localStorage.apiKey = this.key;
-        localStorage.theme = this.theme;
-        this.$emit('initialised', true);
-      }
+      required: false,
+      default: false
     }
   }
 };
 </script>
+
+<style lang="scss">
+.v-treeview-node__content {
+  cursor: pointer;
+}
+</style>

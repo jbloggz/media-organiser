@@ -1,7 +1,7 @@
 <template>
-  <div class="tag-picker">
+  <div v-if="allowEdit" div class="tag-picker">
     <v-combobox
-      v-model="items"
+      v-model="selectedTags"
       :items="getTagOptions(type)"
       :placeholder="`Add ${type}...`"
       :prepend-inner-icon="icon"
@@ -18,13 +18,26 @@
     <v-chip
       v-for="tag in getSuggestedTags(type)"
       :key="tag"
-      :value="!items.includes(tag)"
+      :value="!selectedTags.includes(tag)"
       class="suggested-tags"
       @click="addTag(tag)"
     >
       {{ tag }}
     </v-chip>
   </div>
+  <v-container v-else fill-height class="tag-picker">
+    <v-layout row wrap align-center justify-center>
+      <div class="tag-progress">
+        <v-progress-circular
+          color="primary"
+          indeterminate
+          :size="50"
+          :width="5"
+        ></v-progress-circular>
+      </div>
+      <p>Loading tags. Please wait...</p>
+    </v-layout>
+  </v-container>
 </template>
 
 <script>
@@ -45,28 +58,35 @@ export default {
   },
   data() {
     return {
-      items: []
+      selectedTags: []
     };
   },
   computed: {
     ...mapGetters(['getTags', 'getSuggestedTags', 'getTagOptions']),
-    newTags() {
+    vuexGetTags() {
       return this.getTags(this.type);
+    },
+    allowEdit() {
+      if (this.type === 'tags') {
+        return this.getSuggestedTags(this.type) !== null;
+      } else {
+        return true;
+      }
     }
   },
   watch: {
-    newTags: {
+    vuexGetTags: {
       immediate: true,
-      handler(value) {
-        this.items = value;
+      handler(val) {
+        this.selectedTags = val;
       }
     }
   },
   methods: {
     ...mapActions(['updateTags']),
     addTag(name) {
-      if (!this.items.includes(name)) {
-        this.syncTags([...this.items, name]);
+      if (!this.selectedTags.includes(name)) {
+        this.syncTags([...this.selectedTags, name]);
       }
     },
     syncTags(list) {
@@ -87,6 +107,11 @@ export default {
   .v-input__prepend-inner {
     margin-top: 7px;
     margin-right: 7px;
+  }
+
+  .tag-progress {
+    width: 100%;
+    text-align: center;
   }
 }
 </style>

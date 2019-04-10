@@ -14,7 +14,8 @@
         </v-btn>
       </v-card-title>
       <v-card-text>
-        <v-card light height="400px" class="file-list">
+        <v-divider></v-divider>
+        <v-card flat height="400px" class="file-list">
           <v-treeview
             v-if="items"
             :items="items"
@@ -36,6 +37,7 @@
             ></v-progress-circular>
           </div>
         </v-card>
+        <v-divider></v-divider>
       </v-card-text>
       <v-card-actions class="px-3 pb-3">
         <v-layout align-center>

@@ -9,15 +9,26 @@ export default new Vuex.Store({
   state: {
     index: null,
     photos: [],
-    tags: ['animal', 'baby', 'beach', 'dog', 'happy', 'ocean', 'tree', 'woman'],
-    people: [
-      'Dexter Barnes',
-      'Ivy Barnes',
-      'Josef Barnes',
-      'Katie Barnes',
-      'Molly Barnes',
-      'Hayley Darke'
-    ]
+    tags: {
+      animal: 12,
+      baby: 7,
+      beach: 4,
+      dog: 2,
+      happy: 2,
+      ocean: 1,
+      tree: 1,
+      woman: 1
+    },
+    people: {
+      'Dexter Barnes': 5,
+      'Ivy Barnes': 3,
+      'Josef Barnes': 3,
+      'Katie Barnes': 2,
+      'Molly Barnes': 1,
+      'Hayley Darke': 1
+    },
+    sessionTags: {},
+    sessionPeople: {}
   },
   getters: {
     getFiles(state) {
@@ -44,12 +55,76 @@ export default new Vuex.Store({
         : [];
     },
     getTagOptions: state => type => {
-      return ['tags', 'people'].includes(type) ? _.cloneDeep(state[type]) : [];
+      if (!['tags', 'people'].includes(type)) {
+        return [];
+      }
+
+      const arr = _.map(state[type], (val, key) => ({ key, value: val }));
+      arr.sort((a, b) => b.value - a.value);
+
+      return arr.map(v => v.key);
     },
-    getSuggestedTags: () => type => {
-      return ['tags', 'people'].includes(type)
-        ? ['foo_' + type, 'bar_' + type]
-        : [];
+    getSuggestedTags: (state, getters) => type => {
+      const photo = getters.getPhoto;
+      if (!photo || (type !== 'tags' && type !== 'people')) {
+        return [];
+      }
+
+      /*
+       * For tags, get the following:
+       *   - Top 3 session tags
+       *   - Top 3 oveall tags
+       *   - Top 4 scanned tags
+       *
+       * For people, get the following:
+       *   - Top 5 session people
+       *   - Top 5 oveall people
+       */
+
+      const options = getters.getTagOptions(type);
+      let suggested = _.map(
+        state[`session${_.capitalize(type)}`],
+        (val, key) => ({ key, value: val })
+      );
+      suggested.sort((a, b) => b.value - a.value);
+      suggested = suggested.map(v => v.key);
+
+      if (type === 'tags') {
+        suggested.splice(3);
+        for (const val of options) {
+          if (!suggested.includes(val)) {
+            suggested.push(val);
+            if (suggested.length === 6) {
+              break;
+            }
+          }
+        }
+
+        if (photo.scannedTags === null) {
+          return null;
+        } else {
+          for (const val of photo.scannedTags) {
+            if (!suggested.includes(val)) {
+              suggested.push(val);
+              if (suggested.length === 10) {
+                break;
+              }
+            }
+          }
+        }
+      } else {
+        suggested.splice(5);
+        for (const val of options) {
+          if (!suggested.includes(val)) {
+            suggested.push(val);
+            if (suggested.length === 10) {
+              break;
+            }
+          }
+        }
+      }
+
+      return suggested;
     },
     getSummary(state, getters) {
       const photo = getters.getPhoto;
@@ -114,7 +189,37 @@ export default new Vuex.Store({
     SET_TAGS(state, payload) {
       payload.photo[payload.type] = payload.list.sort();
     },
-    SAVE_PHOTO(state) {
+    SAVE_PHOTO(state, photo) {
+      /* Update tags/people */
+      for (const tag of photo.tags) {
+        Vue.set(
+          state.tags,
+          tag,
+          typeof state.tags[tag] === 'undefined' ? 1 : state.tags[tag] + 1
+        );
+        Vue.set(
+          state.sessionTags,
+          tag,
+          typeof state.sessionTags[tag] === 'undefined'
+            ? 1
+            : state.sessionTags[tag] + 1
+        );
+      }
+      for (const tag of photo.people) {
+        Vue.set(
+          state.people,
+          tag,
+          typeof state.people[tag] === 'undefined' ? 1 : state.people[tag] + 1
+        );
+        Vue.set(
+          state.sessionPeople,
+          tag,
+          typeof state.sessionPeople[tag] === 'undefined'
+            ? 1
+            : state.sessionPeople[tag] + 1
+        );
+      }
+
       state.photos.splice(state.index, 1);
     }
   },
@@ -194,7 +299,7 @@ export default new Vuex.Store({
               ]
             }
           ]);
-        }, 100);
+        }, 500);
       });
     },
     loadPhotos(context, path) {
@@ -215,8 +320,9 @@ export default new Vuex.Store({
               iso: 213,
               aperture: 1.4,
               focal_length: 55,
-              people: ['Josef Barnes', 'Katie Barnes', 'Ivy Barnes'],
-              tags: ['happy', 'ocean', 'beach']
+              people: [],
+              tags: [],
+              scannedTags: ['test', 'foo', 'bar']
             },
             {
               file: require('./assets/test2.jpg'),
@@ -232,8 +338,9 @@ export default new Vuex.Store({
               iso: 1000,
               aperture: 3.5,
               focal_length: 18,
-              people: ['Dexter Barnes', 'Hayley Darke'],
-              tags: ['animal', 'dog', 'woman']
+              people: [],
+              tags: [],
+              scannedTags: null
             },
             {
               file: require('./assets/test3.jpg'),
@@ -249,17 +356,17 @@ export default new Vuex.Store({
               iso: 12600,
               aperture: 2.8,
               focal_length: 35,
-              people: ['Ivy Barnes', 'Molly Barnes', 'Dexter Barnes'],
-              tags: ['baby', 'animal', 'tree']
+              people: [],
+              tags: [],
+              scannedTags: ['hello']
             }
           ]);
           resolve(path);
-        }, 100);
+        }, 500);
       });
     },
     changePhoto(context, index) {
-      if (context.state.photos[index]) context.commit('SET_INDEX', index);
-      else context.commit('SET_INDEX', null);
+      context.commit('SET_INDEX', context.state.photos[index] ? index : null);
     },
     updateTimestamp(context, timestamp) {
       const photo = context.getters.getPhoto;
@@ -330,6 +437,10 @@ export default new Vuex.Store({
     savePhoto(context) {
       const photo = context.getters.getPhoto;
 
+      if (!photo) {
+        return Promise.reject('Error: No photo selected');
+      }
+
       /* A photo must have something set for every field (except people) */
       for (const key of Object.keys(photo)) {
         if (key === 'people') {
@@ -345,9 +456,9 @@ export default new Vuex.Store({
       return new Promise((resolve, reject) => {
         if (context.state.index !== null) {
           setTimeout(() => {
-            context.commit('SAVE_PHOTO');
+            context.commit('SAVE_PHOTO', photo);
             resolve(context);
-          }, 100);
+          }, 500);
         } else {
           reject('Error: No photo selected');
         }
