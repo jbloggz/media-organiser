@@ -221,6 +221,9 @@ export default new Vuex.Store({
       }
 
       state.photos.splice(state.index, 1);
+    },
+    TRASH_PHOTO(state) {
+      state.photos.splice(state.index, 1);
     }
   },
   actions: {
@@ -457,6 +460,24 @@ export default new Vuex.Store({
         if (context.state.index !== null) {
           setTimeout(() => {
             context.commit('SAVE_PHOTO', photo);
+            resolve(context);
+          }, 500);
+        } else {
+          reject('Error: No photo selected');
+        }
+      });
+    },
+    trashPhoto(context) {
+      const photo = context.getters.getPhoto;
+
+      if (!photo) {
+        return Promise.reject('Error: No photo selected');
+      }
+
+      return new Promise((resolve, reject) => {
+        if (context.state.index !== null) {
+          setTimeout(() => {
+            context.commit('TRASH_PHOTO');
             resolve(context);
           }, 500);
         } else {

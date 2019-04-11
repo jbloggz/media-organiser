@@ -17,12 +17,13 @@
         <v-divider></v-divider>
         <v-card flat height="400px" class="file-list">
           <v-treeview
-            v-if="items"
+            :active.sync="active"
             :items="items"
+            :load-children="loadPath"
+            :open.sync="open"
+            loading-icon="mdi-loading"
             activatable
-            hoverable
             transition
-            @update:active="setPath"
           >
             <template v-slot:prepend="{ item, open }">
               <v-icon>
@@ -30,26 +31,20 @@
               </v-icon>
             </template>
           </v-treeview>
-          <div v-else-if="!error" class="pa-4">
-            <v-progress-circular
-              color="primary"
-              indeterminate
-            ></v-progress-circular>
-          </div>
         </v-card>
         <v-divider></v-divider>
       </v-card-text>
       <v-card-actions class="px-3 pb-3">
         <v-layout align-center>
           <span :class="{ 'error--text': error }">
-            {{ error || path }}
+            {{ error || active.length > 0 ? active[0] : '' }}
           </span>
           <v-spacer></v-spacer>
           <v-btn
             flat
             :loading="loading"
-            :disabled="path === null"
-            @click="open"
+            :disabled="active.length === 0"
+            @click="openPath"
           >
             Open
           </v-btn>
@@ -60,6 +55,7 @@
 </template>
 
 <script>
+import axios from 'axios';
 import { mapActions } from 'vuex';
 
 export default {
@@ -67,40 +63,38 @@ export default {
   data() {
     return {
       dialog: false,
-      items: null,
-      path: null,
+      items: [{ id: '/', name: '/', children: [] }],
       loading: false,
-      error: false
+      error: false,
+      open: [],
+      active: []
     };
   },
   watch: {
-    dialog(isOpen) {
-      this.path = null;
+    dialog() {
       this.loading = false;
-      this.items = null;
       this.error = null;
-      if (isOpen) {
-        this.loadPaths()
-          .then(paths => {
-            this.items = paths;
-          })
-          .catch(msg => {
-            this.error = msg;
-          });
-      }
+      this.open = [];
+      this.active = [];
     }
   },
   methods: {
-    ...mapActions(['loadPaths', 'loadPhotos']),
-    setPath(path) {
-      if (path.length === 1) {
-        this.path = path[0];
-      }
+    ...mapActions(['loadPhotos']),
+    loadPath(item) {
+      axios
+        .get(`/api/folder?path=${item.id}`)
+        .then(json => {
+          item.children.push(...json.data);
+          this.open.push(item.id);
+        })
+        .catch(msg => {
+          this.error = msg;
+        });
     },
-    open() {
+    openPath() {
       this.loading = true;
       this.error = null;
-      this.loadPhotos(this.path)
+      this.loadPhotos(this.active[0])
         .then(() => {
           this.dialog = false;
         })

@@ -18,6 +18,15 @@
         >
           <v-icon>mdi-content-save</v-icon>
         </v-btn>
+        <v-btn
+          v-if="selectedFile"
+          icon
+          title="Trash"
+          :loading="trashing"
+          @click="trash"
+        >
+          <v-icon>mdi-trash-can</v-icon>
+        </v-btn>
         <SettingsDialog @theme="changeTheme" />
         <HelpDialog />
       </v-toolbar>
@@ -62,6 +71,7 @@ export default {
       showWelcome: !(localStorage.apiKey && localStorage.outputPath),
       showSettings: false,
       saving: false,
+      trashing: false,
       theme: localStorage.theme ? localStorage.theme : 'dark',
       snack: {
         show: false,
@@ -97,7 +107,7 @@ export default {
     }
   },
   methods: {
-    ...mapActions(['savePhoto']),
+    ...mapActions(['savePhoto', 'trashPhoto']),
     changeTheme(theme) {
       this.theme = theme;
     },
@@ -117,7 +127,7 @@ export default {
             this.showSnackbar(
               'success',
               0,
-              "All photos saved. Click the 'Open' button to select another folder"
+              "All photos processed. Click the 'Open' button to select another folder"
             );
           }
           this.saving = false;
@@ -125,6 +135,26 @@ export default {
         .catch(msg => {
           this.showSnackbar('error', 4000, msg);
           this.saving = false;
+        });
+    },
+    trash() {
+      this.trashing = true;
+      this.trashPhoto()
+        .then(() => {
+          if (this.getFiles.length > 0) {
+            this.showSnackbar('success', 4000, 'Successfully trashed photo');
+          } else {
+            this.showSnackbar(
+              'success',
+              0,
+              "All photos processed. Click the 'Open' button to select another folder"
+            );
+          }
+          this.trashing = false;
+        })
+        .catch(msg => {
+          this.showSnackbar('error', 4000, msg);
+          this.trashing = false;
         });
     }
   }

@@ -15,17 +15,17 @@
           prepend-icon="mdi-folder"
           label="Output Folder"
           v-on="on"
-          @click="getPaths"
         ></v-text-field>
       </template>
       <v-card class="pa-2">
         <v-treeview
-          v-if="paths"
           :items="paths"
+          :load-children="loadPath"
+          :open.sync="expanded_paths"
+          loading-icon="mdi-loading"
           activatable
-          hoverable
           transition
-          @update:active="setPath"
+          @update:active="setOutputPath"
         >
           <template v-slot:prepend="{ item, open }">
             <v-icon>
@@ -33,11 +33,6 @@
             </v-icon>
           </template>
         </v-treeview>
-        <v-progress-circular
-          v-else
-          color="primary"
-          indeterminate
-        ></v-progress-circular>
       </v-card>
     </v-menu>
 
@@ -55,7 +50,8 @@
 </template>
 
 <script>
-import { mapActions } from 'vuex';
+import axios from 'axios';
+
 export default {
   name: 'WelcomeDialog',
   props: {
@@ -70,7 +66,8 @@ export default {
       key: localStorage.apiKey || null,
       isDark: localStorage.theme !== 'light',
       outputPath: localStorage.outputPath || null,
-      paths: null,
+      expanded_paths: [],
+      paths: [{ id: '/', name: '/', children: [] }],
       error: null,
       rules: {
         key: [v => (v && v.length >= 20) || 'Invalid Key'],
@@ -84,21 +81,19 @@ export default {
     }
   },
   methods: {
-    ...mapActions(['loadPaths']),
-    getPaths() {
-      this.paths = null;
-      this.loadPaths()
-        .then(paths => {
-          this.paths = paths;
+    setOutputPath(path) {
+      this.outputPath = path;
+    },
+    loadPath(item) {
+      axios
+        .get(`/api/folder?path=${item.id}`)
+        .then(json => {
+          item.children.push(...json.data);
+          this.expanded_paths.push(item.id);
         })
         .catch(msg => {
           this.error = msg;
         });
-    },
-    setPath(path) {
-      if (path.length === 1) {
-        this.outputPath = path[0];
-      }
     },
     submit() {
       if (this.$refs.form.validate()) {
@@ -115,5 +110,9 @@ export default {
 <style lang="scss">
 .v-treeview-node__content {
   cursor: pointer;
+}
+.v-menu__content .v-card {
+  height: 300px;
+  overflow-y: auto;
 }
 </style>
