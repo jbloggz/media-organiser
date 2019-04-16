@@ -1,11 +1,15 @@
 import _ from 'lodash';
+import http from 'http';
 import express from 'express';
+import socketio from 'socket.io';
 import fs from 'fs';
 import mime from 'mime-types';
 import exif from 'exif-parser';
 import sharp from 'sharp';
 
 const app = express();
+const server = http.createServer(app);
+const io = socketio(server, { path: '/ws' });
 const port = 8090;
 
 function checkPath(path, res) {
@@ -49,7 +53,7 @@ function getDirectoryContents(path) {
 }
 
 /* Staticly serve the vue app */
-app.use(express.static('dist'));
+app.use(express.static('public'));
 
 /* Route for listing paths */
 app.get('/api/ls', (req, res) => {
@@ -87,45 +91,45 @@ app.get('/api/loadPath', (req, res) => {
 
   if (!path) return;
 
-  res.json(
-    getDirectoryContents(path)
-      .filter(name => mime.lookup(name) === 'image/jpeg')
-      .map(name => {
-        try {
-          fd = fs.openSync(`${path}${name}`, 'r');
-          fs.readSync(fd, buf, 0, 65636, 0);
-          fs.closeSync(fd);
+  const output = getDirectoryContents(path)
+    .filter(name => mime.lookup(name) === 'image/jpeg')
+    .map(name => {
+      try {
+        fd = fs.openSync(`${path}${name}`, 'r');
+        fs.readSync(fd, buf, 0, 65636, 0);
+        fs.closeSync(fd);
 
-          parser = exif.create(buf);
-          data = parser.parse();
-        } catch (err) {
-          console.log(`Error processing file ${path}${name} (${err})`);
-          return null;
-        }
+        parser = exif.create(buf);
+        data = parser.parse();
+      } catch (err) {
+        console.log(`Error processing file ${path}${name} (${err})`);
+        return null;
+      }
 
-        return {
-          file: `${path}${name}`,
-          size: fs.lstatSync(`${path}${name}`).size,
-          width: _.get(data, 'imageSize.width', null),
-          height: _.get(data, 'imageSize.height', null),
-          timestamp: _.get(data, 'tags.DateTimeOriginal', null),
-          timezone: null,
-          tzOffset: 0,
-          lat: _.get(data, 'tags.GPSLatitude', null),
-          lng: _.get(data, 'tags.GPSLongitude', null),
-          brand: _.get(data, 'tags.Make', null),
-          model: _.get(data, 'tags.Model', null),
-          exposure: _.get(data, 'tags.ExposureTime', null),
-          iso: _.get(data, 'tags.ISO', null),
-          fNumber: _.get(data, 'tags.FNumber', null),
-          focalLength: _.get(data, 'tags.FocalLength', null),
-          tags: [],
-          people: [],
-          scannedTags: null
-        };
-      })
-      .filter(data => data)
-  );
+      return {
+        file: `${path}${name}`,
+        size: fs.lstatSync(`${path}${name}`).size,
+        width: _.get(data, 'imageSize.width', null),
+        height: _.get(data, 'imageSize.height', null),
+        timestamp: _.get(data, 'tags.DateTimeOriginal', null),
+        timezone: null,
+        tzOffset: 0,
+        lat: _.get(data, 'tags.GPSLatitude', null),
+        lng: _.get(data, 'tags.GPSLongitude', null),
+        brand: _.get(data, 'tags.Make', null),
+        model: _.get(data, 'tags.Model', null),
+        exposure: _.get(data, 'tags.ExposureTime', null),
+        iso: _.get(data, 'tags.ISO', null),
+        fNumber: _.get(data, 'tags.FNumber', null),
+        focalLength: _.get(data, 'tags.FocalLength', null),
+        tags: [],
+        people: [],
+        scannedTags: null
+      };
+    })
+    .filter(data => data);
+
+  res.json(output);
 });
 
 /* Route for loading photo image */
@@ -154,4 +158,22 @@ app.get('/api/img', (req, res) => {
     );
 });
 
-app.listen(port, () => console.log(`Example app listening on port ${port}!`));
+/* Socket.io events */
+io.on('connection', socket => {
+  console.log('Client successfully connected to socket');
+
+  socket.on('startScan', files => {
+    console.log(`Starting scan on ${files.length} files`);
+
+    for (let i = 0; i < files.length; i++) {
+      setTimeout(() => {
+        socket.emit('updateScannedTags', {
+          file: files[i],
+          tags: ['test', 'hello', `${i}`]
+        });
+      }, (i + 1) * 5000);
+    }
+  });
+});
+
+server.listen(port, () => console.log(`App listening on port ${port}!`));

@@ -3,6 +3,7 @@ import Vue from 'vue';
 import Vuex from 'vuex';
 import _ from 'lodash';
 import util from '@/util.js';
+import socket from './socket';
 
 Vue.use(Vuex);
 
@@ -248,6 +249,13 @@ export default new Vuex.Store({
         photo.timestamp += state.tzShift - shift;
       }
       state.tzShift = shift;
+    },
+    SET_SCANNED_TAGS(state, payload) {
+      const photo = state.photos.find(elem => elem.file === payload.file);
+      if (!photo) {
+        return;
+      }
+      photo.scannedTags = payload.tags;
     }
   },
   actions: {
@@ -259,6 +267,12 @@ export default new Vuex.Store({
           }
         }
         context.commit('SET_PHOTOS', json.data);
+
+        /* Tell the server to start scanning tags */
+        socket.on('updateScannedTags', data =>
+          context.dispatch('updateScannedTags', data)
+        );
+        socket.emit('startScan', json.data.map(photo => photo.file));
         return json.data;
       });
     },
@@ -442,6 +456,16 @@ export default new Vuex.Store({
     updateTzShift(context, shift) {
       if (context.state.tzShift !== shift) {
         context.commit('UPDATE_TZ_SHIFT', shift);
+      }
+    },
+    updateScannedTags(context, payload) {
+      if (
+        payload &&
+        typeof payload.file === 'string' &&
+        Array.isArray(payload.tags) &&
+        payload.tags.every(tag => typeof tag === 'string')
+      ) {
+        context.commit('SET_SCANNED_TAGS', payload);
       }
     }
   },
