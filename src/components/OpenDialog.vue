@@ -82,7 +82,7 @@ export default {
     ...mapActions(['loadPhotos']),
     loadPath(item) {
       axios
-        .get(`/api/folder?path=${item.id}`)
+        .get(`/api/ls?path=${item.id}`)
         .then(json => {
           item.children.push(...json.data);
           this.open.push(item.id);

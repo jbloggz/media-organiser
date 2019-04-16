@@ -2,7 +2,7 @@
   <v-form ref="form" @submit.prevent="submit">
     <v-text-field
       v-model="key"
-      :rules="rules.key"
+      :rules="[rules.key]"
       prepend-icon="mdi-key-variant"
       label="API Key"
     ></v-text-field>
@@ -11,7 +11,7 @@
       <template v-slot:activator="{ on }">
         <v-text-field
           v-model="outputPath"
-          :rules="rules.path"
+          :rules="[rules.path]"
           prepend-icon="mdi-folder"
           label="Output Folder"
           v-on="on"
@@ -36,6 +36,13 @@
       </v-card>
     </v-menu>
 
+    <v-text-field
+      v-model="tzShift"
+      :rules="[rules.tzShift]"
+      prepend-icon="mdi-map-clock"
+      label="Camera Timezone offset"
+    ></v-text-field>
+
     <v-switch
       v-model="isDark"
       :label="isDark ? 'Dark Theme' : 'Light Theme'"
@@ -51,9 +58,10 @@
 
 <script>
 import axios from 'axios';
+import { mapActions } from 'vuex';
 
 export default {
-  name: 'WelcomeDialog',
+  name: 'SettingsForm',
   props: {
     button: {
       type: String,
@@ -66,12 +74,17 @@ export default {
       key: localStorage.apiKey || null,
       isDark: localStorage.theme !== 'light',
       outputPath: localStorage.outputPath || null,
+      tzShift: localStorage.tzShift === '0' ? '' : localStorage.tzShift,
       expanded_paths: [],
       paths: [{ id: '/', name: '/', children: [] }],
       error: null,
       rules: {
-        key: [v => (v && v.length >= 20) || 'Invalid Key'],
-        path: [v => (v && v.length >= 0) || 'An output folder must be provided']
+        key: v => (v && v.length >= 20) || 'Invalid Key',
+        path: v => (v && v.length >= 0) || 'An output folder must be provided',
+        tzShift: v => {
+          const pattern = /^-?[0-9]*$/;
+          return v == null || pattern.test(v) || 'Offset must be a number';
+        }
       }
     };
   },
@@ -81,12 +94,13 @@ export default {
     }
   },
   methods: {
+    ...mapActions(['updateTzShift']),
     setOutputPath(path) {
       this.outputPath = path;
     },
     loadPath(item) {
       axios
-        .get(`/api/folder?path=${item.id}`)
+        .get(`/api/ls?path=${item.id}`)
         .then(json => {
           item.children.push(...json.data);
           this.expanded_paths.push(item.id);
@@ -100,6 +114,8 @@ export default {
         localStorage.apiKey = this.key;
         localStorage.theme = this.theme;
         localStorage.outputPath = this.outputPath;
+        localStorage.tzShift = this.tzShift || 0;
+        this.updateTzShift(this.tzShift ? parseInt(this.tzShift) : 0);
         this.$emit('submit');
       }
     }
@@ -110,9 +126,5 @@ export default {
 <style lang="scss">
 .v-treeview-node__content {
   cursor: pointer;
-}
-.v-menu__content .v-card {
-  height: 300px;
-  overflow-y: auto;
 }
 </style>

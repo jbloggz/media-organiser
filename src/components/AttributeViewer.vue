@@ -13,6 +13,7 @@
           <DatetimePicker
             v-else-if="item.key === 'timestamp'"
             :timestamp="item.value"
+            :timezone="getTimezone || ''"
             @change="updateTimestamp"
           />
           <v-edit-dialog
@@ -40,7 +41,7 @@
 </template>
 
 <script>
-import { mapActions } from 'vuex';
+import { mapGetters, mapActions } from 'vuex';
 import DatetimePicker from '@/components/DatetimePicker.vue';
 
 export default {
@@ -57,15 +58,12 @@ export default {
   data() {
     return {
       edit: {
-        timestamp: 0,
-        brand: '',
-        model: '',
-        exposure: '',
-        iso: '',
-        aperture: '',
-        focal_length: ''
+        timestamp: 0
       }
     };
+  },
+  computed: {
+    ...mapGetters(['getTimezone'])
   },
   methods: {
     ...mapActions(['updateTimestamp', 'updateTextValue'])

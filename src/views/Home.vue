@@ -1,5 +1,5 @@
 <template>
-  <v-container v-if="hasPhotos" class="pa-2">
+  <v-container v-if="hasPhotos" fluid class="pa-2">
     <v-layout row wrap>
       <v-flex d-flex xs12 lg6>
         <v-layout column>

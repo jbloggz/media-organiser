@@ -10,7 +10,7 @@
     <v-carousel-item
       v-for="(file, index) in getFiles"
       :key="index"
-      :src="file"
+      :src="`/api/img?file=${file}`"
       contain
     >
     </v-carousel-item>

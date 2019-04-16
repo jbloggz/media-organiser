@@ -1,3 +1,4 @@
+import axios from 'axios';
 import Vue from 'vue';
 import Vuex from 'vuex';
 import _ from 'lodash';
@@ -28,7 +29,9 @@ export default new Vuex.Store({
       'Hayley Darke': 1
     },
     sessionTags: {},
-    sessionPeople: {}
+    sessionPeople: {},
+    tzShift: localStorage.tzShift === '0' ? 0 : parseInt(localStorage.tzShift),
+    tzCache: null
   },
   getters: {
     getFiles(state) {
@@ -47,6 +50,10 @@ export default new Vuex.Store({
             lng: photo.lng
           }
         : null;
+    },
+    getTimezone(state, getters) {
+      const photo = getters.getPhoto;
+      return photo ? photo.timezone : null;
     },
     getTags: (state, getters) => type => {
       const photo = getters.getPhoto;
@@ -142,7 +149,7 @@ export default new Vuex.Store({
         {
           key: 'timestamp',
           title: 'Time',
-          value: photo.timestamp
+          value: photo.timestamp * 1000
         },
         {
           title: 'Location',
@@ -152,11 +159,11 @@ export default new Vuex.Store({
         { key: 'model', title: 'Model', value: photo.model },
         { key: 'exposure', title: 'Exposure', value: photo.exposure },
         { key: 'iso', title: 'ISO', value: photo.iso },
-        { key: 'aperture', title: 'Aperture', value: photo.aperture },
+        { key: 'fNumber', title: 'F Number', value: photo.fNumber },
         {
-          key: 'focal_length',
+          key: 'focalLength',
           title: 'Focal Length',
-          value: photo.focal_length
+          value: photo.focalLength
         },
         {
           title: 'Tags',
@@ -167,17 +174,28 @@ export default new Vuex.Store({
           value: `(${photo.people.length}) ${photo.people.join(', ')}`
         }
       ];
+    },
+    getTzCache(state) {
+      return state.tzCache;
     }
   },
   mutations: {
     SET_PHOTOS(state, photos) {
       state.photos = photos;
+      state.index = 0;
     },
     SET_INDEX(state, index) {
       state.index = index;
     },
     SET_TIMESTAMP(state, payload) {
       payload.photo.timestamp = payload.timestamp;
+    },
+    SET_TIMEZONE(state, payload) {
+      payload.photo.tzOffset = payload.tzOffset;
+      payload.photo.timezone = payload.timezone;
+    },
+    SET_TZ_CACHE(state, payload) {
+      state.tzCache = payload;
     },
     SET_LOCATION(state, payload) {
       payload.photo.lat = payload.lat;
@@ -224,159 +242,94 @@ export default new Vuex.Store({
     },
     TRASH_PHOTO(state) {
       state.photos.splice(state.index, 1);
+    },
+    UPDATE_TZ_SHIFT(state, shift) {
+      for (const photo of state.photos) {
+        photo.timestamp += state.tzShift - shift;
+      }
+      state.tzShift = shift;
     }
   },
   actions: {
-    loadPaths() {
-      return new Promise(resolve => {
-        setTimeout(() => {
-          resolve([
-            {
-              id: 1,
-              name: 'Applications :',
-              children: [
-                { id: 'test', name: 'Calendar : app' },
-                { id: 3, name: 'Chrome : app' },
-                { id: 4, name: 'Webstorm : app' }
-              ]
-            },
-            {
-              id: 5,
-              name: 'Documents :',
-              children: [
-                {
-                  id: 6,
-                  name: 'vuetify :',
-                  children: [
-                    {
-                      id: 7,
-                      name: 'src :',
-                      children: [
-                        { id: 8, name: 'index : ts' },
-                        { id: 9, name: 'bootstrap : ts' }
-                      ]
-                    }
-                  ]
-                },
-                {
-                  id: 10,
-                  name: 'material2 :',
-                  children: [
-                    {
-                      id: 11,
-                      name: 'src :',
-                      children: [
-                        { id: 12, name: 'v-btn : ts' },
-                        { id: 13, name: 'v-card : ts' },
-                        { id: 14, name: 'v-window : ts' }
-                      ]
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              id: 15,
-              name: 'Downloads :',
-              children: [
-                { id: 16, name: 'October : pdf' },
-                { id: 17, name: 'November : pdf' },
-                { id: 18, name: 'Tutorial : html' }
-              ]
-            },
-            {
-              id: 19,
-              name: 'Videos :',
-              children: [
-                {
-                  id: 20,
-                  name: 'Tutorials :',
-                  children: [
-                    { id: 21, name: 'Basic layouts : mp4' },
-                    { id: 22, name: 'Advanced techniques : mp4' },
-                    { id: 23, name: 'All about app : dir' }
-                  ]
-                },
-                { id: 24, name: 'Intro : mov' },
-                { id: 25, name: 'Conference introduction : avi' }
-              ]
-            }
-          ]);
-        }, 500);
-      });
-    },
     loadPhotos(context, path) {
-      return new Promise(resolve => {
-        setTimeout(() => {
-          context.commit('SET_PHOTOS', [
-            {
-              file: require('./assets/test1.jpg'),
-              size: 8885509,
-              width: 6000,
-              height: 4000,
-              timestamp: 1551152937000,
-              lat: -31.243316006616393,
-              lng: 147.83203125,
-              brand: 'Canon',
-              model: 'Canon EOS 750D',
-              exposure: '1/60',
-              iso: 213,
-              aperture: 1.4,
-              focal_length: 55,
-              people: [],
-              tags: [],
-              scannedTags: ['test', 'foo', 'bar']
-            },
-            {
-              file: require('./assets/test2.jpg'),
-              size: 885509,
-              width: 3000,
-              height: 2000,
-              timestamp: 1551172937000,
-              lat: null,
-              lng: null,
-              brand: 'LGE',
-              model: 'Nexus 5',
-              exposure: '1/200',
-              iso: 1000,
-              aperture: 3.5,
-              focal_length: 18,
-              people: [],
-              tags: [],
-              scannedTags: null
-            },
-            {
-              file: require('./assets/test3.jpg'),
-              size: 12345678,
-              width: 1234,
-              height: 5678,
-              timestamp: 1550152937000,
-              lat: -29.6687,
-              lng: 153.109,
-              brand: 'Google',
-              model: 'Pixel',
-              exposure: '10',
-              iso: 12600,
-              aperture: 2.8,
-              focal_length: 35,
-              people: [],
-              tags: [],
-              scannedTags: ['hello']
-            }
-          ]);
-          resolve(path);
-        }, 500);
+      return axios.get(`/api/loadPath?path=${path}`).then(json => {
+        if (context.state.tzShift) {
+          for (const photo of json.data) {
+            photo.timestamp = photo.timestamp - context.state.tzShift;
+          }
+        }
+        context.commit('SET_PHOTOS', json.data);
+        return json.data;
       });
     },
     changePhoto(context, index) {
-      context.commit('SET_INDEX', context.state.photos[index] ? index : null);
+      const new_photo = context.state.photos[index];
+      context.commit('SET_INDEX', new_photo ? index : null);
+
+      /* If the new photo doesnt have a timezone, try to get one */
+      if (new_photo && !new_photo.timezone) {
+        context.dispatch('updateTimezone');
+      }
     },
     updateTimestamp(context, timestamp) {
       const photo = context.getters.getPhoto;
 
       if (photo && typeof timestamp === 'number') {
-        context.commit('SET_TIMESTAMP', { photo, timestamp });
+        context.commit('SET_TIMESTAMP', { photo, timestamp: timestamp / 1000 });
+        context.dispatch('updateTimezone');
       }
+    },
+    updateTimezone(context) {
+      const photo = context.getters.getPhoto;
+      const tzCache = context.getters.getTzCache;
+      if (!photo) return Promise.reject('Error: No photo selected');
+
+      /* Only continue if the photo has a location and timestamp */
+      if (!photo.lat || !photo.lng || !photo.timestamp) {
+        return Promise.resolve();
+      }
+
+      /* Check if we can use the tzCache */
+      if (
+        tzCache &&
+        Math.abs(photo.lat - tzCache.lat) < 1 &&
+        Math.abs(photo.lng - tzCache.lng) < 1 &&
+        Math.abs(photo.timestamp - tzCache.time) < 86400
+      ) {
+        context.commit('SET_TIMEZONE', {
+          photo,
+          timezone: tzCache.timezone,
+          tzOffset: tzCache.tzOffset
+        });
+        return Promise.resolve();
+      }
+
+      /* Get the timezone from google */
+      const url = 'https://maps.googleapis.com/maps/api/timezone/json';
+      const gps = `${photo.lat},${photo.lng}`;
+      const key = localStorage.apiKey;
+      const time = photo.timestamp;
+      return axios
+        .get(`${url}?location=${gps}&timestamp=${time}&key=${key}`)
+        .then(resp => {
+          if (!resp.data.timeZoneId || !resp.data.rawOffset) {
+            throw new Error('Error: Cannot get timezone information');
+          }
+          const timezone = resp.data.timeZoneId;
+          let tzOffset = resp.data.rawOffset;
+          if (resp.data.dstOffset) {
+            tzOffset += resp.data.dstOffset;
+          }
+          const tzCache = {
+            lat: photo.lat,
+            lng: photo.lng,
+            time: photo.timestamp,
+            timezone,
+            tzOffset
+          };
+          context.commit('SET_TZ_CACHE', tzCache);
+          context.commit('SET_TIMEZONE', { photo, timezone, tzOffset });
+        });
     },
     updateLocation(context, loc) {
       const photo = context.getters.getPhoto;
@@ -393,6 +346,7 @@ export default new Vuex.Store({
         typeof loc.lng === 'number'
       ) {
         context.commit('SET_LOCATION', { photo, ...loc });
+        context.dispatch('updateTimezone');
       }
     },
     updateTextValue(context, payload) {
@@ -405,8 +359,8 @@ export default new Vuex.Store({
           'model',
           'exposure',
           'iso',
-          'aperture',
-          'focal_length'
+          'fNumber',
+          'focalLength'
         ].includes(payload.key) &&
         typeof payload.value === 'string'
       ) {
@@ -484,6 +438,11 @@ export default new Vuex.Store({
           reject('Error: No photo selected');
         }
       });
+    },
+    updateTzShift(context, shift) {
+      if (context.state.tzShift !== shift) {
+        context.commit('UPDATE_TZ_SHIFT', shift);
+      }
     }
   },
   strict: process.env.NODE_ENV !== 'production'

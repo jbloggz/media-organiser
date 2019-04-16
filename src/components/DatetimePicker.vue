@@ -4,8 +4,8 @@
     :nudge-right="40"
     lazy
     transition="scale-transition"
-    offset-y
     full-width
+    top
     min-width="290px"
   >
     <template v-slot:activator="{ on }">
@@ -36,6 +36,10 @@ export default {
     timestamp: {
       required: true,
       type: Number
+    },
+    timezone: {
+      required: true,
+      type: String
     }
   },
   data() {
@@ -46,15 +50,19 @@ export default {
   },
   computed: {
     displayText() {
-      var options = {
+      const options = {
         weekday: 'long',
         year: 'numeric',
         month: 'long',
         day: 'numeric',
         hour: 'numeric',
         minute: '2-digit',
-        second: '2-digit'
+        second: '2-digit',
+        timeZoneName: 'short'
       };
+      if (this.timezone) {
+        options.timeZone = this.timezone;
+      }
       return new Date(this.timestamp).toLocaleString('en-AU', options);
     }
   },
