@@ -130,16 +130,28 @@ app.get('/api/loadPath', (req, res) => {
 
 /* Route for loading photo image */
 app.get('/api/img', (req, res) => {
-  sharp(req.query.file)
-    .resize(1000)
-    .toBuffer()
+  if (!req.query.file) {
+    return res.status(404).json('No file provided');
+  }
+
+  const stream = sharp(req.query.file);
+
+  stream
+    .metadata()
+    .then(meta => {
+      const len = parseInt(req.query.size) || 1000;
+      const width = meta.width > meta.length ? len : null;
+      const length = meta.width > meta.length ? null : len;
+
+      return stream.resize(width, length).toBuffer();
+    })
     .then(img => {
       res.writeHead(200, { 'Content-Type': 'image/jpeg' });
       res.end(img, 'binary');
     })
-    .catch(err => {
-      console.log('Error Loading image:', err);
-    });
+    .catch(err =>
+      res.status(404).json(`Unable to process file '${req.query.file}': ${err}`)
+    );
 });
 
 app.listen(port, () => console.log(`Example app listening on port ${port}!`));
