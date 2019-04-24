@@ -3,7 +3,6 @@ import Vue from 'vue';
 import Vuex from 'vuex';
 import _ from 'lodash';
 import util from '@/util.js';
-import socket from './socket';
 
 Vue.use(Vuex);
 
@@ -32,11 +31,15 @@ export default new Vuex.Store({
     sessionTags: {},
     sessionPeople: {},
     tzShift: localStorage.tzShift === '0' ? 0 : parseInt(localStorage.tzShift),
-    tzCache: null
+    tzCache: null,
+    snack: null
   },
   getters: {
     getFiles(state) {
       return _.map(state.photos, 'file');
+    },
+    getSnack(state) {
+      return state.snack;
     },
     getPhoto(state) {
       return state.index !== null && state.index < state.photos.length
@@ -82,11 +85,11 @@ export default new Vuex.Store({
        * For tags, get the following:
        *   - Top 3 session tags
        *   - Top 3 oveall tags
-       *   - Top 4 scanned tags
+       *   - All scanned tags
        *
        * For people, get the following:
-       *   - Top 5 session people
-       *   - Top 5 oveall people
+       *   - Top 10 session people
+       *   - Top 10 oveall people
        */
 
       const options = getters.getTagOptions(type);
@@ -98,34 +101,31 @@ export default new Vuex.Store({
       suggested = suggested.map(v => v.key);
 
       if (type === 'tags') {
-        suggested.splice(3);
+        suggested.splice(5);
         for (const val of options) {
           if (!suggested.includes(val)) {
             suggested.push(val);
-            if (suggested.length === 6) {
+            if (suggested.length === 10) {
               break;
             }
           }
         }
 
         if (photo.scannedTags === null) {
-          return null;
+          return photo.processingScannedTags ? null : undefined;
         } else {
           for (const val of photo.scannedTags) {
             if (!suggested.includes(val)) {
               suggested.push(val);
-              if (suggested.length === 10) {
-                break;
-              }
             }
           }
         }
       } else {
-        suggested.splice(5);
+        suggested.splice(10);
         for (const val of options) {
           if (!suggested.includes(val)) {
             suggested.push(val);
-            if (suggested.length === 10) {
+            if (suggested.length === 20) {
               break;
             }
           }
@@ -183,7 +183,6 @@ export default new Vuex.Store({
   mutations: {
     SET_PHOTOS(state, photos) {
       state.photos = photos;
-      state.index = 0;
     },
     SET_INDEX(state, index) {
       state.index = index;
@@ -250,12 +249,15 @@ export default new Vuex.Store({
       }
       state.tzShift = shift;
     },
+    SET_PROCESSING_TAGS(state, payload) {
+      payload.photo.processingScannedTags = payload.value;
+    },
     SET_SCANNED_TAGS(state, payload) {
-      const photo = state.photos.find(elem => elem.file === payload.file);
-      if (!photo) {
-        return;
-      }
-      photo.scannedTags = payload.tags;
+      payload.photo.scannedTags = payload.tags;
+      payload.photo.processingScannedTags = false;
+    },
+    SET_SNACK(state, snack) {
+      state.snack = snack;
     }
   },
   actions: {
@@ -267,23 +269,50 @@ export default new Vuex.Store({
           }
         }
         context.commit('SET_PHOTOS', json.data);
-
-        /* Tell the server to start scanning tags */
-        socket.on('updateScannedTags', data =>
-          context.dispatch('updateScannedTags', data)
-        );
-        socket.emit('startScan', json.data.map(photo => photo.file));
         return json.data;
       });
     },
     changePhoto(context, index) {
-      const new_photo = context.state.photos[index];
-      context.commit('SET_INDEX', new_photo ? index : null);
+      const photos = context.state.photos;
+      const newPhoto = photos[index];
+      context.commit('SET_INDEX', newPhoto ? index : null);
+      if (!newPhoto) {
+        return;
+      }
 
       /* If the new photo doesnt have a timezone, try to get one */
-      if (new_photo && !new_photo.timezone) {
+      if (newPhoto && !newPhoto.timezone) {
         context.dispatch('updateTimezone');
       }
+
+      /* Get tags for this photo and the 2 photos either side */
+      for (const offset of [0, 1, -1, 2, -2]) {
+        if (
+          photos[index + offset] &&
+          !photos[index + offset].scannedTags &&
+          !photos[index + offset].processingScannedTags
+        ) {
+          context.dispatch('loadScannedTags', photos[index + offset]);
+        }
+      }
+    },
+    loadScannedTags(context, payload) {
+      const photo = payload || context.getters.getPhoto;
+
+      context.commit('SET_PROCESSING_TAGS', { photo, value: true });
+      axios
+        .get(`/api/annotate?file=${photo.file}&key=${localStorage.apiKey}`)
+        .then(resp => {
+          if (
+            Array.isArray(resp.data.tags) &&
+            resp.data.tags.every(tag => typeof tag === 'string')
+          ) {
+            context.commit('SET_SCANNED_TAGS', { photo, tags: resp.data.tags });
+          }
+        })
+        .catch(() => {
+          context.commit('SET_PROCESSING_TAGS', { photo, value: false });
+        });
     },
     updateTimestamp(context, timestamp) {
       const photo = context.getters.getPhoto;
@@ -343,6 +372,18 @@ export default new Vuex.Store({
           };
           context.commit('SET_TZ_CACHE', tzCache);
           context.commit('SET_TIMEZONE', { photo, timezone, tzOffset });
+        })
+        .catch(err => {
+          context.commit('SET_TIMEZONE', {
+            photo,
+            timezone: null,
+            tzOffset: 0
+          });
+          context.commit('SET_SNACK', {
+            color: 'error',
+            timeout: 4000,
+            msg: err.message
+          });
         });
     },
     updateLocation(context, loc) {
@@ -405,6 +446,17 @@ export default new Vuex.Store({
         });
       }
     },
+    updateScannedTags(context, tags) {
+      const photo = context.getters.getPhoto;
+
+      if (
+        photo &&
+        Array.isArray(tags) &&
+        tags.every(tag => typeof tag === 'string')
+      ) {
+        context.commit('SET_SCANNED_TAGS', { photo, tags });
+      }
+    },
     savePhoto(context) {
       const photo = context.getters.getPhoto;
 
@@ -412,13 +464,15 @@ export default new Vuex.Store({
         return Promise.reject('Error: No photo selected');
       }
 
-      /* A photo must have something set for every field (except people) */
+      /* A photo must have something set for every data field */
       for (const key of Object.keys(photo)) {
-        if (key === 'people') {
+        if (['people', 'processingScannedTags'].includes(key)) {
           continue;
         } else if (
           !photo[key] ||
-          (Array.isArray(photo[key]) && photo[key].length == 0)
+          (Array.isArray(photo[key]) &&
+            photo[key].length == 0 &&
+            key !== 'scannedTags')
         ) {
           return Promise.reject(`Error: Photo is missing a value for '${key}'`);
         }
@@ -456,16 +510,6 @@ export default new Vuex.Store({
     updateTzShift(context, shift) {
       if (context.state.tzShift !== shift) {
         context.commit('UPDATE_TZ_SHIFT', shift);
-      }
-    },
-    updateScannedTags(context, payload) {
-      if (
-        payload &&
-        typeof payload.file === 'string' &&
-        Array.isArray(payload.tags) &&
-        payload.tags.every(tag => typeof tag === 'string')
-      ) {
-        context.commit('SET_SCANNED_TAGS', payload);
       }
     }
   },

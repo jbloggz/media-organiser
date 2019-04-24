@@ -1,5 +1,5 @@
 <template>
-  <div v-if="allowEdit" div class="tag-picker">
+  <div v-if="Array.isArray(getSuggestedTags(type))" div class="tag-picker">
     <v-combobox
       v-model="selectedTags"
       :items="getTagOptions(type)"
@@ -25,7 +25,11 @@
       {{ tag }}
     </v-chip>
   </div>
-  <v-container v-else fill-height class="tag-picker">
+  <v-container
+    v-else-if="getSuggestedTags(type) === null"
+    fill-height
+    class="tag-picker"
+  >
     <v-layout row wrap align-center justify-center>
       <div class="tag-progress">
         <v-progress-circular
@@ -36,6 +40,18 @@
         ></v-progress-circular>
       </div>
       <p>Loading tags. Please wait...</p>
+    </v-layout>
+  </v-container>
+  <v-container v-else class="tag-picker" fill-height>
+    <v-layout align-center justify-center column>
+      <div class="pb-2">
+        <v-icon color="error" class="pr-2">mdi-alert-circle</v-icon>
+        Unable to load scanned tags
+      </div>
+      <div>
+        <v-btn title="Retry" @click="loadScannedTags()">Retry</v-btn>
+        <v-btn title="Ignore" @click="updateScannedTags([])">Ignore</v-btn>
+      </div>
     </v-layout>
   </v-container>
 </template>
@@ -83,7 +99,7 @@ export default {
     }
   },
   methods: {
-    ...mapActions(['updateTags']),
+    ...mapActions(['updateTags', 'updateScannedTags', 'loadScannedTags']),
     addTag(name) {
       if (!this.selectedTags.includes(name)) {
         this.syncTags([...this.selectedTags, name]);

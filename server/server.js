@@ -1,7 +1,7 @@
 import _ from 'lodash';
+import axios from 'axios';
 import http from 'http';
 import express from 'express';
-import socketio from 'socket.io';
 import fs from 'fs';
 import mime from 'mime-types';
 import exif from 'exif-parser';
@@ -9,7 +9,6 @@ import sharp from 'sharp';
 
 const app = express();
 const server = http.createServer(app);
-const io = socketio(server, { path: '/ws' });
 const port = 8090;
 
 function checkPath(path, res) {
@@ -53,7 +52,7 @@ function getDirectoryContents(path) {
 }
 
 /* Staticly serve the vue app */
-app.use(express.static('public'));
+app.use(express.static(`${__dirname}/public`));
 
 /* Route for listing paths */
 app.get('/api/ls', (req, res) => {
@@ -124,7 +123,8 @@ app.get('/api/loadPath', (req, res) => {
         focalLength: _.get(data, 'tags.FocalLength', null),
         tags: [],
         people: [],
-        scannedTags: null
+        scannedTags: null,
+        processingScannedTags: false
       };
     })
     .filter(data => data);
@@ -144,10 +144,15 @@ app.get('/api/img', (req, res) => {
     .metadata()
     .then(meta => {
       const len = parseInt(req.query.size) || 1000;
-      const width = meta.width > meta.length ? len : null;
-      const length = meta.width > meta.length ? null : len;
+      if (len < Math.max(meta.width, meta.height)) {
+        if (meta.width > meta.height) {
+          return stream.resize(len, null).toBuffer();
+        } else {
+          return stream.resize(null, len).toBuffer();
+        }
+      }
 
-      return stream.resize(width, length).toBuffer();
+      return stream.toBuffer();
     })
     .then(img => {
       res.writeHead(200, { 'Content-Type': 'image/jpeg' });
@@ -158,22 +163,62 @@ app.get('/api/img', (req, res) => {
     );
 });
 
-/* Socket.io events */
-io.on('connection', socket => {
-  console.log('Client successfully connected to socket');
+/* Route for loading photo image */
+app.get('/api/annotate', async (req, res) => {
+  if (!req.query.file) {
+    return res.status(404).json('No file provided');
+  } else if (!req.query.key) {
+    return res.status(404).json('No key provided');
+  }
 
-  socket.on('startScan', files => {
-    console.log(`Starting scan on ${files.length} files`);
+  const stream = sharp(req.query.file);
 
-    for (let i = 0; i < files.length; i++) {
-      setTimeout(() => {
-        socket.emit('updateScannedTags', {
-          file: files[i],
-          tags: ['test', 'hello', `${i}`]
-        });
-      }, (i + 1) * 5000);
-    }
-  });
+  stream
+    .metadata()
+    .then(meta => {
+      const len = parseInt(req.query.size) || 1600;
+      if (len < Math.max(meta.width, meta.height)) {
+        if (meta.width > meta.height) {
+          return stream.resize(len, null).toBuffer();
+        } else {
+          return stream.resize(null, len).toBuffer();
+        }
+      }
+
+      return stream.toBuffer();
+    })
+    .then(img => {
+      const url = `https://vision.googleapis.com/v1/images:annotate?key=${
+        req.query.key
+      }`;
+      const data = {
+        requests: [
+          {
+            image: { content: img.toString('base64') },
+            features: [{ type: 'LABEL_DETECTION' }]
+          }
+        ]
+      };
+
+      return axios.post(url, data);
+    })
+    .then(resp => {
+      const annotations = _.get(
+        resp,
+        'data.responses[0].labelAnnotations',
+        null
+      );
+      if (!annotations) {
+        throw new Error('Invalid annotations response');
+      }
+      res.json({
+        file: req.query.file,
+        tags: annotations.map(obj => obj.description.toLowerCase())
+      });
+    })
+    .catch(err =>
+      res.status(404).json(`Unable to process file '${req.query.file}': ${err}`)
+    );
 });
 
 server.listen(port, () => console.log(`App listening on port ${port}!`));

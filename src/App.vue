@@ -82,7 +82,7 @@ export default {
     };
   },
   computed: {
-    ...mapGetters(['getFiles', 'getPhoto']),
+    ...mapGetters(['getFiles', 'getPhoto', 'getSnack']),
     selectedFile() {
       return this.getPhoto
         ? this.getPhoto.file.substring(this.getPhoto.file.lastIndexOf('/') + 1)
@@ -104,6 +104,12 @@ export default {
           }, 1000);
         }
       }
+    },
+    getSnack(val) {
+      if (!val) {
+        return;
+      }
+      this.showSnackbar(val.color, val.timeout, val.msg);
     }
   },
   methods: {
@@ -163,6 +169,6 @@ export default {
 
 <style lang="scss">
 .v-snack {
-  z-index: inherit;
+  z-index: 1;
 }
 </style>
