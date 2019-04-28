@@ -158,8 +158,8 @@ export default {
           }
           this.trashing = false;
         })
-        .catch(msg => {
-          this.showSnackbar('error', 4000, msg);
+        .catch(resp => {
+          this.showSnackbar('error', 4000, resp.response.data);
           this.trashing = false;
         });
     }

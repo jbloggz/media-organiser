@@ -10,24 +10,8 @@ export default new Vuex.Store({
   state: {
     index: null,
     photos: [],
-    tags: {
-      animal: 12,
-      baby: 7,
-      beach: 4,
-      dog: 2,
-      happy: 2,
-      ocean: 1,
-      tree: 1,
-      woman: 1
-    },
-    people: {
-      'Dexter Barnes': 5,
-      'Ivy Barnes': 3,
-      'Josef Barnes': 3,
-      'Katie Barnes': 2,
-      'Molly Barnes': 1,
-      'Hayley Darke': 1
-    },
+    tags: {},
+    people: {},
     sessionTags: {},
     sessionPeople: {},
     tzShift: localStorage.tzShift === '0' ? 0 : parseInt(localStorage.tzShift),
@@ -181,8 +165,10 @@ export default new Vuex.Store({
     }
   },
   mutations: {
-    SET_PHOTOS(state, photos) {
-      state.photos = photos;
+    SET_PHOTOS(state, payload) {
+      state.photos = payload.photos;
+      state.tags = payload.tags;
+      state.people = payload.people;
     },
     SET_INDEX(state, index) {
       state.index = index;
@@ -262,15 +248,28 @@ export default new Vuex.Store({
   },
   actions: {
     loadPhotos(context, path) {
-      return axios.get(`/api/loadPath?path=${path}`).then(json => {
-        if (context.state.tzShift) {
-          for (const photo of json.data) {
-            photo.timestamp = photo.timestamp - context.state.tzShift;
+      return axios
+        .get(`/api/loadPath?path=${path}&output=${localStorage.outputPath}`)
+        .then(json => {
+          if (!json.data.photos) json.data.photos = [];
+          if (!json.data.tags) json.data.tags = {};
+          if (!json.data.people) json.data.people = {};
+
+          if (context.state.tzShift) {
+            for (const photo of json.data.photos) {
+              photo.timestamp = photo.timestamp - context.state.tzShift;
+            }
           }
-        }
-        context.commit('SET_PHOTOS', json.data);
-        return json.data;
-      });
+          context.commit('SET_PHOTOS', json.data);
+
+          /* Trigger a photo change to get annotations */
+          context.dispatch('changePhoto', 0);
+
+          return json.data;
+        })
+        .catch(err => {
+          throw err.response.data;
+        });
     },
     changePhoto(context, index) {
       const photos = context.state.photos;
@@ -355,7 +354,10 @@ export default new Vuex.Store({
       return axios
         .get(`${url}?location=${gps}&timestamp=${time}&key=${key}`)
         .then(resp => {
-          if (!resp.data.timeZoneId || !resp.data.rawOffset) {
+          if (
+            !resp.data.timeZoneId ||
+            typeof resp.data.rawOffset !== 'number'
+          ) {
             throw new Error('Error: Cannot get timezone information');
           }
           const timezone = resp.data.timeZoneId;
@@ -478,16 +480,21 @@ export default new Vuex.Store({
         }
       }
 
-      return new Promise((resolve, reject) => {
-        if (context.state.index !== null) {
-          setTimeout(() => {
+      if (context.state.index !== null) {
+        return axios
+          .post(`/api/save`, { photo, path: localStorage.outputPath })
+          .then(() => {
             context.commit('SAVE_PHOTO', photo);
-            resolve(context);
-          }, 500);
-        } else {
-          reject('Error: No photo selected');
-        }
-      });
+
+            /* Trigger a photo change to get annotations */
+            context.dispatch('changePhoto', context.state.index);
+          })
+          .catch(err => {
+            throw err.response.data;
+          });
+      } else {
+        return Promise.reject('Error: No photo selected');
+      }
     },
     trashPhoto(context) {
       const photo = context.getters.getPhoto;
@@ -496,16 +503,18 @@ export default new Vuex.Store({
         return Promise.reject('Error: No photo selected');
       }
 
-      return new Promise((resolve, reject) => {
-        if (context.state.index !== null) {
-          setTimeout(() => {
+      if (context.state.index !== null) {
+        return axios
+          .get(`/api/trash?file=${photo.file}&path=${localStorage.outputPath}`)
+          .then(() => {
             context.commit('TRASH_PHOTO');
-            resolve(context);
-          }, 500);
-        } else {
-          reject('Error: No photo selected');
-        }
-      });
+
+            /* Trigger a photo change to get annotations */
+            context.dispatch('changePhoto', context.state.index);
+          });
+      } else {
+        return Promise.reject('Error: No photo selected');
+      }
     },
     updateTzShift(context, shift) {
       if (context.state.tzShift !== shift) {

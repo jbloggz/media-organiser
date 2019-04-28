@@ -37,7 +37,7 @@
       <v-card-actions class="px-3 pb-3">
         <v-layout align-center>
           <span :class="{ 'error--text': error }">
-            {{ error || active.length > 0 ? active[0] : '' }}
+            {{ error || (active.length > 0 ? active[0] : '') }}
           </span>
           <v-spacer></v-spacer>
           <v-btn
@@ -76,6 +76,9 @@ export default {
       this.error = null;
       this.open = [];
       this.active = [];
+    },
+    active() {
+      this.error = null;
     }
   },
   methods: {
@@ -87,8 +90,8 @@ export default {
           item.children.push(...json.data);
           this.open.push(item.id);
         })
-        .catch(msg => {
-          this.error = msg;
+        .catch(resp => {
+          this.error = resp.response.data;
         });
     },
     openPath() {
