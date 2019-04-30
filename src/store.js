@@ -124,8 +124,16 @@ export default new Vuex.Store({
 
       return [
         {
+          title: 'Type',
+          value: photo.type
+        },
+        {
           title: 'Size',
           value: `${util.pretty_size(photo.size)} (${photo.size})`
+        },
+        {
+          title: 'Length',
+          value: photo.length
         },
         {
           title: 'Dimensions',
@@ -140,16 +148,7 @@ export default new Vuex.Store({
           title: 'Location',
           value: `${util.pretty_gps(photo.lat, photo.lng)}`
         },
-        { key: 'brand', title: 'Brand', value: photo.brand },
-        { key: 'model', title: 'Model', value: photo.model },
-        { key: 'exposure', title: 'Exposure', value: photo.exposure },
-        { key: 'iso', title: 'ISO', value: photo.iso },
-        { key: 'fNumber', title: 'F Number', value: photo.fNumber },
-        {
-          key: 'focalLength',
-          title: 'Focal Length',
-          value: photo.focalLength
-        },
+        { key: 'camera', title: 'Camera', value: photo.camera },
         {
           title: 'Tags',
           value: `(${photo.tags.length}) ${photo.tags.join(', ')}`
@@ -409,16 +408,10 @@ export default new Vuex.Store({
     updateTextValue(context, payload) {
       const photo = context.getters.getPhoto;
 
+      /* Currently only 'camera' is valid */
       if (
         photo &&
-        [
-          'brand',
-          'model',
-          'exposure',
-          'iso',
-          'fNumber',
-          'focalLength'
-        ].includes(payload.key) &&
+        ['camera'].includes(payload.key) &&
         typeof payload.value === 'string'
       ) {
         context.commit('SET_TEXT_VALUE', {
@@ -464,20 +457,6 @@ export default new Vuex.Store({
 
       if (!photo) {
         return Promise.reject('Error: No photo selected');
-      }
-
-      /* A photo must have something set for every data field */
-      for (const key of Object.keys(photo)) {
-        if (['people', 'processingScannedTags'].includes(key)) {
-          continue;
-        } else if (
-          !photo[key] ||
-          (Array.isArray(photo[key]) &&
-            photo[key].length == 0 &&
-            key !== 'scannedTags')
-        ) {
-          return Promise.reject(`Error: Photo is missing a value for '${key}'`);
-        }
       }
 
       if (context.state.index !== null) {

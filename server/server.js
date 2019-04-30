@@ -80,7 +80,9 @@ function openDatabase(path) {
         CREATE TABLE IF NOT EXISTS photo (
           id          INTEGER PRIMARY KEY,
           file        TEXT NOT NULL UNIQUE,
+          type        TEXT NOT NULL,
           size        INTEGER NOT NULL,
+          length      INTEGER DEFAULT NULL,
           width       INTEGER NOT NULL,
           height      INTEGER NOT NULL,
           timestamp   INTEGER NOT NULL,
@@ -88,12 +90,7 @@ function openDatabase(path) {
           tzOffset    INTEGER NOT NULL,
           lat         REAL NOT NULL,
           lng         REAL NOT NULL,
-          brand       TEXT NOT NULL,
-          model       TEXT NOT NULL,
-          exposure    INTEGER NOT NULL,
-          iso         INTEGER NOT NULL,
-          fNumber     INTEGER NOT NULL,
-          focalLength INTEGER NOT NULL
+          camera      TEXT NOT NULL
         );
         CREATE TABLE IF NOT EXISTS tag (
           id          INTEGER PRIMARY KEY,
@@ -221,9 +218,18 @@ app.get('/api/loadPath', async (req, res) => {
         return null;
       }
 
+      /* Get the camera model */
+      const brand = _.get(data, 'tags.Make', null);
+      const model = _.get(data, 'tags.Model', null);
+      const camera = model.toLowerCase().startsWith(brand.toLowerCase())
+        ? model
+        : `${brand} ${model}`;
+
       return {
         file: `${path}${name}`,
+        type: 'image',
         size: fs.lstatSync(`${path}${name}`).size,
+        length: null,
         width: _.get(data, 'imageSize.width', null),
         height: _.get(data, 'imageSize.height', null),
         timestamp: _.get(data, 'tags.DateTimeOriginal', null),
@@ -231,12 +237,7 @@ app.get('/api/loadPath', async (req, res) => {
         tzOffset: 0,
         lat: _.get(data, 'tags.GPSLatitude', null),
         lng: _.get(data, 'tags.GPSLongitude', null),
-        brand: _.get(data, 'tags.Make', null),
-        model: _.get(data, 'tags.Model', null),
-        exposure: _.get(data, 'tags.ExposureTime', null),
-        iso: _.get(data, 'tags.ISO', null),
-        fNumber: _.get(data, 'tags.FNumber', null),
-        focalLength: _.get(data, 'tags.FocalLength', null),
+        camera,
         tags: [],
         people: [],
         scannedTags: null,
@@ -455,30 +456,26 @@ app.post('/api/save', async (req, res) => {
   }
 
   /* Validate photo info */
-  for (const key of [
-    'size',
+  const mandatory = [
+    'type',
     'width',
     'height',
     'timestamp',
+    'timezone',
     'tzOffset',
     'lat',
     'lng',
-    'exposure',
-    'iso',
-    'fNumber',
-    'focalLength'
-  ]) {
-    if (!photo[key] || isNaN(photo[key])) {
-      return res.status(404).json(`${key} is not a number`);
+    'camera'
+  ];
+  for (const key of mandatory) {
+    if (!photo[key]) {
+      return res
+        .status(404)
+        .json(`Error: Photo is missing a value for '${key}'`);
     }
   }
-  for (const key of ['timezone', 'brand', 'model']) {
-    if (!photo[key] || typeof photo[key] !== 'string') {
-      return res.status(404).json(`${key} is not a string`);
-    }
-  }
-  if (!Array.isArray(photo.tags) || photo.tags.length === 0) {
-    return res.status(404).json('No tags provided');
+  if (!photo.tags || !Array.isArray(photo.tags) || photo.tags.length === 0) {
+    return res.status(404).json('Error: At least one tag is required');
   }
 
   /* Copy file to folder */
@@ -496,9 +493,11 @@ app.post('/api/save', async (req, res) => {
     await sqlRun(db, 'BEGIN EXCLUSIVE');
     sqlres = await sqlRun(
       db,
-      'INSERT INTO photo VALUES (NULL,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+      'INSERT INTO photo VALUES (NULL,?,?,?,?,?,?,?,?,?,?,?,?)',
       `${year}/${month}/${name}.jpg`,
+      photo.type,
       photo.size,
+      photo.length || null,
       photo.width,
       photo.height,
       photo.timestamp,
@@ -506,12 +505,7 @@ app.post('/api/save', async (req, res) => {
       photo.tzOffset,
       photo.lat,
       photo.lng,
-      photo.brand,
-      photo.model,
-      photo.exposure,
-      photo.iso,
-      photo.fNumber,
-      photo.focalLength
+      photo.camera
     );
     id = sqlres.lastID;
     for (const tag of photo.tags) {
