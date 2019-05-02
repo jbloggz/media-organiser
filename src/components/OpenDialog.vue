@@ -82,7 +82,7 @@ export default {
     }
   },
   methods: {
-    ...mapActions(['loadPhotos']),
+    ...mapActions(['loadMedia']),
     loadPath(item) {
       axios
         .get(`/api/ls?path=${item.id}`)
@@ -97,7 +97,7 @@ export default {
     openPath() {
       this.loading = true;
       this.error = null;
-      this.loadPhotos(this.active[0])
+      this.loadMedia(this.active[0])
         .then(() => {
           this.dialog = false;
         })

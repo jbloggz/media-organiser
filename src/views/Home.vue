@@ -1,10 +1,10 @@
 <template>
-  <v-container v-if="hasPhotos" fluid class="pa-2">
+  <v-container v-if="hasItems" fluid class="pa-2">
     <v-layout row wrap>
       <v-flex d-flex xs12 lg6>
         <v-layout column>
           <v-card class="ma-1">
-            <PhotoViewer :theme="theme" />
+            <MediaViewer :theme="theme" />
           </v-card>
           <v-card class="ma-1">
             <MapPicker
@@ -45,7 +45,7 @@ import LoaderDialog from '@/components/LoaderDialog.vue';
 import MapPicker from '@/components/MapPicker.vue';
 import TagPicker from '@/components/TagPicker.vue';
 import AttributeViewer from '@/components/AttributeViewer.vue';
-import PhotoViewer from '@/components/PhotoViewer.vue';
+import MediaViewer from '@/components/MediaViewer.vue';
 
 export default {
   name: 'App',
@@ -54,7 +54,7 @@ export default {
     MapPicker,
     TagPicker,
     AttributeViewer,
-    PhotoViewer
+    MediaViewer
   },
   props: {
     theme: {
@@ -72,12 +72,12 @@ export default {
     apiKey() {
       return localStorage.apiKey;
     },
-    hasPhotos() {
+    hasItems() {
       return this.getFiles.length > 0;
     }
   },
   watch: {
-    hasPhotos(val) {
+    hasItems(val) {
       if (!val) {
         this.mapsLoaded = false;
       }

@@ -6,8 +6,8 @@
       </v-card-title>
       <v-card-text>
         <p>
-          Welcome to the Photo Organiser web app! To get started, please enter a
-          valid Google Maps API Key and an output folder for saving photos:
+          Welcome to the Media Organiser web app! To get started, please enter a
+          valid Google Maps API Key and an output folder for saving data:
         </p>
         <SettingsForm
           button="Start"

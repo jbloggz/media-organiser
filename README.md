@@ -1,2 +1,2 @@
-# photo_organiser
+# Media Organiser
 

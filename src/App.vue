@@ -5,7 +5,7 @@
       <v-toolbar app dense dark color="primary">
         <OpenDialog @click="snack.show = false" />
         <v-toolbar-title>
-          Photo Organiser
+          Media Organiser
           <span v-if="selectedFile"> - {{ selectedFile }}</span>
         </v-toolbar-title>
         <v-spacer></v-spacer>
@@ -82,10 +82,12 @@ export default {
     };
   },
   computed: {
-    ...mapGetters(['getFiles', 'getPhoto', 'getSnack']),
+    ...mapGetters(['getFiles', 'getCurrent', 'getSnack']),
     selectedFile() {
-      return this.getPhoto
-        ? this.getPhoto.file.substring(this.getPhoto.file.lastIndexOf('/') + 1)
+      return this.getCurrent
+        ? this.getCurrent.file.substring(
+            this.getCurrent.file.lastIndexOf('/') + 1
+          )
         : null;
     }
   },
@@ -113,7 +115,7 @@ export default {
     }
   },
   methods: {
-    ...mapActions(['savePhoto', 'trashPhoto']),
+    ...mapActions(['saveCurrent', 'trashCurrent']),
     changeTheme(theme) {
       this.theme = theme;
     },
@@ -125,15 +127,15 @@ export default {
     },
     save() {
       this.saving = true;
-      this.savePhoto()
+      this.saveCurrent()
         .then(() => {
           if (this.getFiles.length > 0) {
-            this.showSnackbar('success', 4000, 'Successfully saved photo');
+            this.showSnackbar('success', 4000, 'Successfully saved');
           } else {
             this.showSnackbar(
               'success',
               0,
-              "All photos processed. Click the 'Open' button to select another folder"
+              "All items processed. Click the 'Open' button to select another folder"
             );
           }
           this.saving = false;
@@ -145,15 +147,15 @@ export default {
     },
     trash() {
       this.trashing = true;
-      this.trashPhoto()
+      this.trashCurrent()
         .then(() => {
           if (this.getFiles.length > 0) {
-            this.showSnackbar('success', 4000, 'Successfully trashed photo');
+            this.showSnackbar('success', 4000, 'Successfully trashed');
           } else {
             this.showSnackbar(
               'success',
               0,
-              "All photos processed. Click the 'Open' button to select another folder"
+              "All items processed. Click the 'Open' button to select another folder"
             );
           }
           this.trashing = false;

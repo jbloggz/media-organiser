@@ -1,5 +1,5 @@
 {
-  "name": "photo_organiser",
+  "name": "media_organiser",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -19,6 +19,7 @@
     "body-parser": "^1.18.3",
     "exif-parser": "^0.1.12",
     "express": "^4.16.4",
+    "fluent-ffmpeg": "^2.1.2",
     "mime-types": "^2.1.22",
     "sharp": "^0.22.0",
     "sqlite3": "^4.0.6",

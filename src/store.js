@@ -9,7 +9,7 @@ Vue.use(Vuex);
 export default new Vuex.Store({
   state: {
     index: null,
-    photos: [],
+    media: [],
     tags: {},
     people: {},
     sessionTags: {},
@@ -20,33 +20,33 @@ export default new Vuex.Store({
   },
   getters: {
     getFiles(state) {
-      return _.map(state.photos, 'file');
+      return _.map(state.media, 'file');
     },
     getSnack(state) {
       return state.snack;
     },
-    getPhoto(state) {
-      return state.index !== null && state.index < state.photos.length
-        ? state.photos[state.index]
+    getCurrent(state) {
+      return state.index !== null && state.index < state.media.length
+        ? state.media[state.index]
         : null;
     },
     getLocation(state, getters) {
-      const photo = getters.getPhoto;
-      return photo
+      const item = getters.getCurrent;
+      return item
         ? {
-            lat: photo.lat,
-            lng: photo.lng
+            lat: item.lat,
+            lng: item.lng
           }
         : null;
     },
     getTimezone(state, getters) {
-      const photo = getters.getPhoto;
-      return photo ? photo.timezone : null;
+      const item = getters.getCurrent;
+      return item ? item.timezone : null;
     },
     getTags: (state, getters) => type => {
-      const photo = getters.getPhoto;
-      return photo && ['tags', 'people'].includes(type)
-        ? _.cloneDeep(photo[type])
+      const item = getters.getCurrent;
+      return item && ['tags', 'people'].includes(type)
+        ? _.cloneDeep(item[type])
         : [];
     },
     getTagOptions: state => type => {
@@ -60,8 +60,8 @@ export default new Vuex.Store({
       return arr.map(v => v.key);
     },
     getSuggestedTags: (state, getters) => type => {
-      const photo = getters.getPhoto;
-      if (!photo || (type !== 'tags' && type !== 'people')) {
+      const item = getters.getCurrent;
+      if (!item || (type !== 'tags' && type !== 'people')) {
         return [];
       }
 
@@ -95,10 +95,10 @@ export default new Vuex.Store({
           }
         }
 
-        if (photo.scannedTags === null) {
-          return photo.processingScannedTags ? null : undefined;
+        if (item.scannedTags === null) {
+          return item.processingScannedTags ? null : undefined;
         } else {
-          for (const val of photo.scannedTags) {
+          for (const val of item.scannedTags) {
             if (!suggested.includes(val)) {
               suggested.push(val);
             }
@@ -119,43 +119,43 @@ export default new Vuex.Store({
       return suggested;
     },
     getSummary(state, getters) {
-      const photo = getters.getPhoto;
-      if (!photo) return [];
+      const item = getters.getCurrent;
+      if (!item) return [];
 
       return [
         {
           title: 'Type',
-          value: photo.type
+          value: item.type
         },
         {
           title: 'Size',
-          value: `${util.pretty_size(photo.size)} (${photo.size})`
+          value: `${util.pretty_size(item.size)} (${item.size})`
         },
         {
           title: 'Length',
-          value: photo.length
+          value: item.length
         },
         {
           title: 'Dimensions',
-          value: `${photo.width} x ${photo.height}`
+          value: `${item.width} x ${item.height}`
         },
         {
           key: 'timestamp',
           title: 'Time',
-          value: photo.timestamp * 1000
+          value: item.timestamp * 1000
         },
         {
           title: 'Location',
-          value: `${util.pretty_gps(photo.lat, photo.lng)}`
+          value: `${util.pretty_gps(item.lat, item.lng)}`
         },
-        { key: 'camera', title: 'Camera', value: photo.camera },
+        { key: 'camera', title: 'Camera', value: item.camera },
         {
           title: 'Tags',
-          value: `(${photo.tags.length}) ${photo.tags.join(', ')}`
+          value: `(${item.tags.length}) ${item.tags.join(', ')}`
         },
         {
           title: 'People',
-          value: `(${photo.people.length}) ${photo.people.join(', ')}`
+          value: `(${item.people.length}) ${item.people.join(', ')}`
         }
       ];
     },
@@ -164,8 +164,8 @@ export default new Vuex.Store({
     }
   },
   mutations: {
-    SET_PHOTOS(state, payload) {
-      state.photos = payload.photos;
+    SET_MEDIA(state, payload) {
+      state.media = payload.media;
       state.tags = payload.tags;
       state.people = payload.people;
     },
@@ -173,28 +173,28 @@ export default new Vuex.Store({
       state.index = index;
     },
     SET_TIMESTAMP(state, payload) {
-      payload.photo.timestamp = payload.timestamp;
+      payload.item.timestamp = payload.timestamp;
     },
     SET_TIMEZONE(state, payload) {
-      payload.photo.tzOffset = payload.tzOffset;
-      payload.photo.timezone = payload.timezone;
+      payload.item.tzOffset = payload.tzOffset;
+      payload.item.timezone = payload.timezone;
     },
     SET_TZ_CACHE(state, payload) {
       state.tzCache = payload;
     },
     SET_LOCATION(state, payload) {
-      payload.photo.lat = payload.lat;
-      payload.photo.lng = payload.lng;
+      payload.item.lat = payload.lat;
+      payload.item.lng = payload.lng;
     },
     SET_TEXT_VALUE(state, payload) {
-      payload.photo[payload.key] = payload.value;
+      payload.item[payload.key] = payload.value;
     },
     SET_TAGS(state, payload) {
-      payload.photo[payload.type] = payload.list.sort();
+      payload.item[payload.type] = payload.list.sort();
     },
-    SAVE_PHOTO(state, photo) {
+    SAVE_CURRENT(state, item) {
       /* Update tags/people */
-      for (const tag of photo.tags) {
+      for (const tag of item.tags) {
         Vue.set(
           state.tags,
           tag,
@@ -208,7 +208,7 @@ export default new Vuex.Store({
             : state.sessionTags[tag] + 1
         );
       }
-      for (const tag of photo.people) {
+      for (const tag of item.people) {
         Vue.set(
           state.people,
           tag,
@@ -223,46 +223,46 @@ export default new Vuex.Store({
         );
       }
 
-      state.photos.splice(state.index, 1);
+      state.media.splice(state.index, 1);
     },
-    TRASH_PHOTO(state) {
-      state.photos.splice(state.index, 1);
+    TRASH_CURRENT(state) {
+      state.media.splice(state.index, 1);
     },
     UPDATE_TZ_SHIFT(state, shift) {
-      for (const photo of state.photos) {
-        photo.timestamp += state.tzShift - shift;
+      for (const item of state.media) {
+        item.timestamp += state.tzShift - shift;
       }
       state.tzShift = shift;
     },
     SET_PROCESSING_TAGS(state, payload) {
-      payload.photo.processingScannedTags = payload.value;
+      payload.item.processingScannedTags = payload.value;
     },
     SET_SCANNED_TAGS(state, payload) {
-      payload.photo.scannedTags = payload.tags;
-      payload.photo.processingScannedTags = false;
+      payload.item.scannedTags = payload.tags;
+      payload.item.processingScannedTags = false;
     },
     SET_SNACK(state, snack) {
       state.snack = snack;
     }
   },
   actions: {
-    loadPhotos(context, path) {
+    loadMedia(context, path) {
       return axios
         .get(`/api/loadPath?path=${path}&output=${localStorage.outputPath}`)
         .then(json => {
-          if (!json.data.photos) json.data.photos = [];
+          if (!json.data.media) json.data.media = [];
           if (!json.data.tags) json.data.tags = {};
           if (!json.data.people) json.data.people = {};
 
           if (context.state.tzShift) {
-            for (const photo of json.data.photos) {
-              photo.timestamp = photo.timestamp - context.state.tzShift;
+            for (const item of json.data.media) {
+              item.timestamp = item.timestamp - context.state.tzShift;
             }
           }
-          context.commit('SET_PHOTOS', json.data);
+          context.commit('SET_MEDIA', json.data);
 
-          /* Trigger a photo change to get annotations */
-          context.dispatch('changePhoto', 0);
+          /* Trigger an item change to get annotations */
+          context.dispatch('changeItem', 0);
 
           return json.data;
         })
@@ -270,75 +270,75 @@ export default new Vuex.Store({
           throw err.response.data;
         });
     },
-    changePhoto(context, index) {
-      const photos = context.state.photos;
-      const newPhoto = photos[index];
-      context.commit('SET_INDEX', newPhoto ? index : null);
-      if (!newPhoto) {
+    changeItem(context, index) {
+      const media = context.state.media;
+      const newItem = media[index];
+      context.commit('SET_INDEX', newItem ? index : null);
+      if (!newItem) {
         return;
       }
 
-      /* If the new photo doesnt have a timezone, try to get one */
-      if (newPhoto && !newPhoto.timezone) {
+      /* If the new item doesnt have a timezone, try to get one */
+      if (newItem && !newItem.timezone) {
         context.dispatch('updateTimezone');
       }
 
-      /* Get tags for this photo and the 2 photos either side */
+      /* Get tags for this item and the 2 items either side */
       for (const offset of [0, 1, -1, 2, -2]) {
         if (
-          photos[index + offset] &&
-          !photos[index + offset].scannedTags &&
-          !photos[index + offset].processingScannedTags
+          media[index + offset] &&
+          !media[index + offset].scannedTags &&
+          !media[index + offset].processingScannedTags
         ) {
-          context.dispatch('loadScannedTags', photos[index + offset]);
+          context.dispatch('loadScannedTags', media[index + offset]);
         }
       }
     },
     loadScannedTags(context, payload) {
-      const photo = payload || context.getters.getPhoto;
+      const item = payload || context.getters.getCurrent;
 
-      context.commit('SET_PROCESSING_TAGS', { photo, value: true });
+      context.commit('SET_PROCESSING_TAGS', { item, value: true });
       axios
-        .get(`/api/annotate?file=${photo.file}&key=${localStorage.apiKey}`)
+        .get(`/api/annotate?file=${item.file}&key=${localStorage.apiKey}`)
         .then(resp => {
           if (
             Array.isArray(resp.data.tags) &&
             resp.data.tags.every(tag => typeof tag === 'string')
           ) {
-            context.commit('SET_SCANNED_TAGS', { photo, tags: resp.data.tags });
+            context.commit('SET_SCANNED_TAGS', { item, tags: resp.data.tags });
           }
         })
         .catch(() => {
-          context.commit('SET_PROCESSING_TAGS', { photo, value: false });
+          context.commit('SET_PROCESSING_TAGS', { item, value: false });
         });
     },
     updateTimestamp(context, timestamp) {
-      const photo = context.getters.getPhoto;
+      const item = context.getters.getCurrent;
 
-      if (photo && typeof timestamp === 'number') {
-        context.commit('SET_TIMESTAMP', { photo, timestamp: timestamp / 1000 });
+      if (item && typeof timestamp === 'number') {
+        context.commit('SET_TIMESTAMP', { item, timestamp: timestamp / 1000 });
         context.dispatch('updateTimezone');
       }
     },
     updateTimezone(context) {
-      const photo = context.getters.getPhoto;
+      const item = context.getters.getCurrent;
       const tzCache = context.getters.getTzCache;
-      if (!photo) return Promise.reject('Error: No photo selected');
+      if (!item) return Promise.reject('Error: No item selected');
 
-      /* Only continue if the photo has a location and timestamp */
-      if (!photo.lat || !photo.lng || !photo.timestamp) {
+      /* Only continue if the item has a location and timestamp */
+      if (!item.lat || !item.lng || !item.timestamp) {
         return Promise.resolve();
       }
 
       /* Check if we can use the tzCache */
       if (
         tzCache &&
-        Math.abs(photo.lat - tzCache.lat) < 1 &&
-        Math.abs(photo.lng - tzCache.lng) < 1 &&
-        Math.abs(photo.timestamp - tzCache.time) < 86400
+        Math.abs(item.lat - tzCache.lat) < 1 &&
+        Math.abs(item.lng - tzCache.lng) < 1 &&
+        Math.abs(item.timestamp - tzCache.time) < 86400
       ) {
         context.commit('SET_TIMEZONE', {
-          photo,
+          item,
           timezone: tzCache.timezone,
           tzOffset: tzCache.tzOffset
         });
@@ -347,9 +347,9 @@ export default new Vuex.Store({
 
       /* Get the timezone from google */
       const url = 'https://maps.googleapis.com/maps/api/timezone/json';
-      const gps = `${photo.lat},${photo.lng}`;
+      const gps = `${item.lat},${item.lng}`;
       const key = localStorage.apiKey;
-      const time = photo.timestamp;
+      const time = item.timestamp;
       return axios
         .get(`${url}?location=${gps}&timestamp=${time}&key=${key}`)
         .then(resp => {
@@ -365,18 +365,18 @@ export default new Vuex.Store({
             tzOffset += resp.data.dstOffset;
           }
           const tzCache = {
-            lat: photo.lat,
-            lng: photo.lng,
-            time: photo.timestamp,
+            lat: item.lat,
+            lng: item.lng,
+            time: item.timestamp,
             timezone,
             tzOffset
           };
           context.commit('SET_TZ_CACHE', tzCache);
-          context.commit('SET_TIMEZONE', { photo, timezone, tzOffset });
+          context.commit('SET_TIMEZONE', { item, timezone, tzOffset });
         })
         .catch(err => {
           context.commit('SET_TIMEZONE', {
-            photo,
+            item,
             timezone: null,
             tzOffset: 0
           });
@@ -388,12 +388,12 @@ export default new Vuex.Store({
         });
     },
     updateLocation(context, loc) {
-      const photo = context.getters.getPhoto;
-      if (!photo) return;
+      const item = context.getters.getCurrent;
+      if (!item) return;
 
       /* Do some hardcore validation before letting this through */
       if (
-        photo &&
+        item &&
         loc &&
         typeof loc === 'object' &&
         loc.hasOwnProperty('lat') &&
@@ -401,32 +401,32 @@ export default new Vuex.Store({
         loc.hasOwnProperty('lng') &&
         typeof loc.lng === 'number'
       ) {
-        context.commit('SET_LOCATION', { photo, ...loc });
+        context.commit('SET_LOCATION', { item, ...loc });
         context.dispatch('updateTimezone');
       }
     },
     updateTextValue(context, payload) {
-      const photo = context.getters.getPhoto;
+      const item = context.getters.getCurrent;
 
       /* Currently only 'camera' is valid */
       if (
-        photo &&
+        item &&
         ['camera'].includes(payload.key) &&
         typeof payload.value === 'string'
       ) {
         context.commit('SET_TEXT_VALUE', {
-          photo,
+          item,
           key: payload.key,
           value: payload.value
         });
       }
     },
     updateTags(context, payload) {
-      const photo = context.getters.getPhoto;
+      const item = context.getters.getCurrent;
 
       /* Do some hardcore validation before letting this through */
       if (
-        photo &&
+        item &&
         payload.hasOwnProperty('type') &&
         typeof payload.type === 'string' &&
         ['tags', 'people'].includes(payload.type) &&
@@ -435,64 +435,64 @@ export default new Vuex.Store({
         payload.list.every(tag => typeof tag === 'string')
       ) {
         context.commit('SET_TAGS', {
-          photo,
+          item,
           type: payload.type,
           list: payload.list
         });
       }
     },
     updateScannedTags(context, tags) {
-      const photo = context.getters.getPhoto;
+      const item = context.getters.getCurrent;
 
       if (
-        photo &&
+        item &&
         Array.isArray(tags) &&
         tags.every(tag => typeof tag === 'string')
       ) {
-        context.commit('SET_SCANNED_TAGS', { photo, tags });
+        context.commit('SET_SCANNED_TAGS', { item, tags });
       }
     },
-    savePhoto(context) {
-      const photo = context.getters.getPhoto;
+    saveCurrent(context) {
+      const item = context.getters.getCurrent;
 
-      if (!photo) {
-        return Promise.reject('Error: No photo selected');
+      if (!item) {
+        return Promise.reject('Error: No item selected');
       }
 
       if (context.state.index !== null) {
         return axios
-          .post(`/api/save`, { photo, path: localStorage.outputPath })
+          .post(`/api/save`, { item, path: localStorage.outputPath })
           .then(() => {
-            context.commit('SAVE_PHOTO', photo);
+            context.commit('SAVE_CURRENT', item);
 
-            /* Trigger a photo change to get annotations */
-            context.dispatch('changePhoto', context.state.index);
+            /* Trigger an item change to get annotations */
+            context.dispatch('changeItem', context.state.index);
           })
           .catch(err => {
             throw err.response.data;
           });
       } else {
-        return Promise.reject('Error: No photo selected');
+        return Promise.reject('Error: No item selected');
       }
     },
-    trashPhoto(context) {
-      const photo = context.getters.getPhoto;
+    trashCurrent(context) {
+      const item = context.getters.getCurrent;
 
-      if (!photo) {
-        return Promise.reject('Error: No photo selected');
+      if (!item) {
+        return Promise.reject('Error: No item selected');
       }
 
       if (context.state.index !== null) {
         return axios
-          .get(`/api/trash?file=${photo.file}&path=${localStorage.outputPath}`)
+          .get(`/api/trash?file=${item.file}&path=${localStorage.outputPath}`)
           .then(() => {
-            context.commit('TRASH_PHOTO');
+            context.commit('TRASH_CURRENT');
 
-            /* Trigger a photo change to get annotations */
-            context.dispatch('changePhoto', context.state.index);
+            /* Trigger a item change to get annotations */
+            context.dispatch('changeItem', context.state.index);
           });
       } else {
-        return Promise.reject('Error: No photo selected');
+        return Promise.reject('Error: No item selected');
       }
     },
     updateTzShift(context, shift) {

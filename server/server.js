@@ -9,12 +9,60 @@ import mime from 'mime-types';
 import exif from 'exif-parser';
 import sharp from 'sharp';
 import sqlite3 from 'sqlite3';
+import ffmpeg from 'fluent-ffmpeg';
 
 const app = express();
 app.use(bodyParser.json());
 
 const server = http.createServer(app);
 const port = 8090;
+
+function extractFrame(input, output) {
+  return new Promise((resolve, reject) => {
+    const cmd = ffmpeg(input);
+
+    cmd
+      .outputOptions(['-vframes', 1, '-q:v', 2])
+      .output(output)
+      .on('end', () => resolve())
+      .on('error', err => reject(err))
+      .run();
+  });
+}
+
+function loadVideoMeta(file) {
+  return new Promise(resolve => {
+    ffmpeg.ffprobe(file, (err, metadata) => {
+      resolve(err ? null : metadata);
+    });
+  });
+}
+
+function loadImg(file, size) {
+  if (!file) {
+    return Promise.reject('No file provided');
+  }
+
+  const stream = sharp(file);
+
+  return stream
+    .metadata()
+    .then(meta => {
+      const len = parseInt(size) || 1000;
+      if (len < Math.max(meta.width, meta.height)) {
+        if (meta.width > meta.height) {
+          return stream.resize(len, null).toBuffer();
+        } else {
+          return stream.resize(null, len).toBuffer();
+        }
+      }
+
+      return stream.toBuffer();
+    })
+    .catch(err => {
+      throw new Error(`Unable to process file '${file}': ${err}`);
+    });
+}
 
 function checkPath(path, res, has_write) {
   let stat;
@@ -71,13 +119,13 @@ function getDirectoryContents(path) {
 
 function openDatabase(path) {
   return new Promise((resolve, reject) => {
-    const db = new sqlite3.Database(`${path}photos.db`);
+    const db = new sqlite3.Database(`${path}media.db`);
 
     db.exec(
       `
         PRAGMA foreign_keys = ON;
         BEGIN EXCLUSIVE;
-        CREATE TABLE IF NOT EXISTS photo (
+        CREATE TABLE IF NOT EXISTS media (
           id          INTEGER PRIMARY KEY,
           file        TEXT NOT NULL UNIQUE,
           type        TEXT NOT NULL,
@@ -101,14 +149,14 @@ function openDatabase(path) {
           name        TEXT NOT NULL UNIQUE
         );
         CREATE TABLE IF NOT EXISTS tag_map (
-          photo       INTEGER NOT NULL REFERENCES photo(id) ON DELETE CASCADE ON UPDATE CASCADE,
+          media       INTEGER NOT NULL REFERENCES media(id) ON DELETE CASCADE ON UPDATE CASCADE,
           tag         INTEGER NOT NULL REFERENCES tag(id) ON DELETE CASCADE ON UPDATE CASCADE,
-          UNIQUE(photo, tag)
+          UNIQUE(media, tag)
         );
         CREATE TABLE IF NOT EXISTS person_map (
-          photo       INTEGER NOT NULL REFERENCES photo(id) ON DELETE CASCADE ON UPDATE CASCADE,
+          media       INTEGER NOT NULL REFERENCES media(id) ON DELETE CASCADE ON UPDATE CASCADE,
           person      INTEGER NOT NULL REFERENCES person(id) ON DELETE CASCADE ON UPDATE CASCADE,
-          UNIQUE(photo, person)
+          UNIQUE(media, person)
         );
         COMMIT;
       `,
@@ -194,7 +242,7 @@ app.get('/api/ls', (req, res) => {
   res.json(dirList);
 });
 
-/* Route for loading photo data */
+/* Route for loading media data */
 app.get('/api/loadPath', async (req, res) => {
   const path = checkPath(req.query.path, res, true);
   const output_path = checkPath(req.query.output, res, true);
@@ -204,7 +252,10 @@ app.get('/api/loadPath', async (req, res) => {
   if (!path || !output_path) return;
 
   const output = { people: {}, tags: {} };
-  output.photos = getDirectoryContents(path)
+  const files = getDirectoryContents(path);
+
+  /* Get the image files */
+  const photos = files
     .filter(name => mime.lookup(name) === 'image/jpeg')
     .map(name => {
       try {
@@ -221,9 +272,14 @@ app.get('/api/loadPath', async (req, res) => {
       /* Get the camera model */
       const brand = _.get(data, 'tags.Make', null);
       const model = _.get(data, 'tags.Model', null);
-      const camera = model.toLowerCase().startsWith(brand.toLowerCase())
-        ? model
-        : `${brand} ${model}`;
+      let camera = null;
+      if (!brand) camera = model;
+      else if (!model) camera = brand;
+      else {
+        camera = model.toLowerCase().startsWith(brand.toLowerCase())
+          ? model
+          : `${brand} ${model}`;
+      }
 
       return {
         file: `${path}${name}`,
@@ -272,41 +328,107 @@ app.get('/api/loadPath', async (req, res) => {
     return res.status(404).json('Unable to get tags/people from database');
   }
 
-  res.json(output);
+  /* Get the video files */
+  Promise.all(
+    files
+      .filter(name => {
+        const type = mime.lookup(name);
+        return type && type.startsWith('video');
+      })
+      .map(name => loadVideoMeta(`${path}${name}`))
+  ).then(values => {
+    const videos = values
+      .map(meta => {
+        /* Make sure we have the correct format info */
+        if (
+          !meta ||
+          !meta.streams ||
+          !meta.format ||
+          !meta.format.filename ||
+          !meta.format.size ||
+          !meta.format.duration
+        ) {
+          return null;
+        }
+
+        /* Make sure we have the correct sizes */
+        let stream = null;
+        for (const mstr of meta.streams) {
+          if (mstr.width && mstr.height) {
+            stream = mstr;
+            break;
+          }
+        }
+
+        if (!stream) return null;
+
+        /* Check if we have GPS and timestamp */
+        let lat, lng, timestamp;
+        if (meta.format.tags) {
+          if (meta.format.tags.location) {
+            lat = parseFloat(
+              meta.format.tags.location.replace(/([+-]?[0-9.]+).*/, '$1')
+            );
+            lng = parseFloat(
+              meta.format.tags.location.replace(
+                /[+-]?[0-9.]+([+-][0-9.]+).*/,
+                '$1'
+              )
+            );
+          }
+          if (meta.format.tags.creation_time) {
+            timestamp = Date.parse(meta.format.tags.creation_time) / 1000;
+          }
+        }
+
+        if (!timestamp) {
+          /* Default to the file modify time */
+          try {
+            timestamp = fs.lstatSync(meta.format.filename).mtimeMs / 1000;
+          } catch (err) {
+            return null;
+          }
+        }
+
+        return {
+          file: meta.format.filename,
+          type: 'video',
+          size: meta.format.size,
+          length: meta.format.duration,
+          width: stream.width,
+          height: stream.height,
+          timestamp,
+          timezone: null,
+          tzOffset: 0,
+          lat,
+          lng,
+          camera: null,
+          tags: [],
+          people: [],
+          scannedTags: null,
+          processingScannedTags: false
+        };
+      })
+      .filter(meta => meta !== null);
+
+    output.media = [...photos, ...videos].sort((a, b) =>
+      a.file < b.file ? -1 : 1
+    );
+    res.json(output);
+  });
 });
 
-/* Route for loading photo image */
+/* Route for loading image file */
 app.get('/api/img', (req, res) => {
-  if (!req.query.file) {
-    return res.status(404).json('No file provided');
-  }
-
-  const stream = sharp(req.query.file);
-
-  stream
-    .metadata()
-    .then(meta => {
-      const len = parseInt(req.query.size) || 1000;
-      if (len < Math.max(meta.width, meta.height)) {
-        if (meta.width > meta.height) {
-          return stream.resize(len, null).toBuffer();
-        } else {
-          return stream.resize(null, len).toBuffer();
-        }
-      }
-
-      return stream.toBuffer();
-    })
+  loadImg(req.query.file, req.query.size)
     .then(img => {
       res.writeHead(200, { 'Content-Type': 'image/jpeg' });
       res.end(img, 'binary');
     })
-    .catch(err =>
-      res.status(404).json(`Unable to process file '${req.query.file}': ${err}`)
-    );
+    .catch(err => res.status(404).json(err.message));
 });
 
-/* Route for loading photo image */
+/* Route for getting image tags */
 app.get('/api/annotate', async (req, res) => {
   if (!req.query.file) {
     return res.status(404).json('No file provided');
@@ -364,6 +486,35 @@ app.get('/api/annotate', async (req, res) => {
     );
 });
 
+/* Route for getting video poster tags */
+app.get('/api/poster', (req, res) => {
+  if (!req.query.file) {
+    return res.status(404).json('No file provided');
+  }
+
+  /* Create posters folder */
+  try {
+    fs.mkdirSync('posters');
+  } catch (err) {
+    if (err.code !== 'EEXIST') {
+      return res.status(404).json("Cannot create 'posters' folder");
+    }
+  }
+
+  const name = basename(req.query.file);
+  const poster = `posters/${name}.jpg`;
+
+  extractFrame(req.query.file, poster)
+    .then(() => loadImg(poster, req.query.size))
+    .then(img => {
+      res.writeHead(200, { 'Content-Type': 'image/jpeg' });
+      res.end(img, 'binary');
+    })
+    .catch(err =>
+      res.status(404).json(`Unable to process file '${poster}': ${err}`)
+    );
+});
+
 /* Route for trashing an image */
 app.get('/api/trash', (req, res) => {
   if (!req.query.file) {
@@ -407,33 +558,33 @@ app.get('/api/trash', (req, res) => {
 /* Route for saving an image */
 app.post('/api/save', async (req, res) => {
   let db, sqlres, id, row;
-  const photo = req.body.photo;
+  const item = req.body.item;
   const path = checkPath(req.body.path, res, true);
   if (!path) {
     return;
   }
 
-  if (!photo || !photo.file) {
-    return res.status(404).json('No photo provided');
-  } else if (dirname(photo.file) + '/' === path) {
+  if (!item || !item.file) {
+    return res.status(404).json('No item provided');
+  } else if (dirname(item.file) + '/' === path) {
     return res.status(404).json('Incompatible file and output path');
   }
 
   /* Get a unique name for the file */
-  if (!photo.timestamp || !photo.timezone) {
-    return res.status(404).json('No timestamp or timezone in photo');
+  if (!item.timestamp || !item.timezone) {
+    return res.status(404).json('No timestamp or timezone in item');
   }
-  let name = photo.timestamp;
+  let name = item.timestamp;
   let year, month, date;
   for (let i = 0; ; i++) {
-    date = new Date(photo.timestamp * 1000);
+    date = new Date(item.timestamp * 1000);
     year = date.toLocaleString('en-au', {
       year: 'numeric',
-      timeZone: photo.timezone
+      timeZone: item.timezone
     });
     month = date.toLocaleString('en-au', {
       month: 'long',
-      timeZone: photo.timezone
+      timeZone: item.timezone
     });
     try {
       fs.accessSync(`${path}${year}/${month}/${name}.jpg`, fs.constants.R_OK);
@@ -443,7 +594,7 @@ app.post('/api/save', async (req, res) => {
       }
       return res.status(404).json('Unable to get unique file name');
     }
-    name = `${photo.timestamp}_${i}`;
+    name = `${item.timestamp}_${i}`;
   }
 
   /* Create output folder */
@@ -455,7 +606,7 @@ app.post('/api/save', async (req, res) => {
     }
   }
 
-  /* Validate photo info */
+  /* Validate data */
   const mandatory = [
     'type',
     'width',
@@ -468,23 +619,23 @@ app.post('/api/save', async (req, res) => {
     'camera'
   ];
   for (const key of mandatory) {
-    if (!photo[key]) {
+    if (!item[key]) {
       return res
         .status(404)
-        .json(`Error: Photo is missing a value for '${key}'`);
+        .json(`Error: Item is missing a value for '${key}'`);
     }
   }
-  if (!photo.tags || !Array.isArray(photo.tags) || photo.tags.length === 0) {
+  if (!item.tags || !Array.isArray(item.tags) || item.tags.length === 0) {
     return res.status(404).json('Error: At least one tag is required');
   }
 
   /* Copy file to folder */
   try {
-    fs.copyFileSync(photo.file, `${path}${year}/${month}/${name}.jpg`);
+    fs.copyFileSync(item.file, `${path}${year}/${month}/${name}.jpg`);
   } catch (err) {
     return res
       .status(404)
-      .json(`Cannot copy file from ${photo.file} to '${path}${name}'`);
+      .json(`Cannot copy file from ${item.file} to '${path}${name}'`);
   }
 
   /* Insert data into database */
@@ -493,22 +644,22 @@ app.post('/api/save', async (req, res) => {
     await sqlRun(db, 'BEGIN EXCLUSIVE');
     sqlres = await sqlRun(
       db,
-      'INSERT INTO photo VALUES (NULL,?,?,?,?,?,?,?,?,?,?,?,?)',
+      'INSERT INTO media VALUES (NULL,?,?,?,?,?,?,?,?,?,?,?,?)',
       `${year}/${month}/${name}.jpg`,
-      photo.type,
-      photo.size,
-      photo.length || null,
-      photo.width,
-      photo.height,
-      photo.timestamp,
-      photo.timezone,
-      photo.tzOffset,
-      photo.lat,
-      photo.lng,
-      photo.camera
+      item.type,
+      item.size,
+      item.length || null,
+      item.width,
+      item.height,
+      item.timestamp,
+      item.timezone,
+      item.tzOffset,
+      item.lat,
+      item.lng,
+      item.camera
     );
     id = sqlres.lastID;
-    for (const tag of photo.tags) {
+    for (const tag of item.tags) {
       row = await sqlGet(db, 'SELECT id FROM tag WHERE name = ?', tag);
       if (!row) {
         sqlres = await sqlRun(db, 'INSERT INTO tag VALUES (NULL,?)', tag);
@@ -520,7 +671,7 @@ app.post('/api/save', async (req, res) => {
         row ? row.id : sqlres.lastID
       );
     }
-    for (const person of photo.people) {
+    for (const person of item.people) {
       row = await sqlGet(db, 'SELECT id FROM person WHERE name = ?', person);
       if (!row) {
         sqlres = await sqlRun(db, 'INSERT INTO person VALUES (NULL,?)', person);
@@ -539,12 +690,12 @@ app.post('/api/save', async (req, res) => {
       await sqlRun(db, 'ROLLBACK');
       db.close();
     }
-    return res.status(404).json('Unable to add photo to database');
+    return res.status(404).json('Unable to add media to database');
   }
 
   /* Remove the original file */
   try {
-    fs.unlinkSync(photo.file);
+    fs.unlinkSync(item.file);
   } catch (err) {
     return res.status(404).json('Cannot remove file');
   }

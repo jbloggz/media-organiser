@@ -25,7 +25,7 @@ import { mapActions } from 'vuex';
 import { mapGetters } from 'vuex';
 
 export default {
-  name: 'PhotoViewer',
+  name: 'MediaViewer',
   props: {
     theme: {
       type: String,
@@ -41,10 +41,10 @@ export default {
     ...mapGetters(['getFiles'])
   },
   methods: {
-    ...mapActions(['changePhoto']),
+    ...mapActions(['changeItem']),
     change(index) {
       this.idx = index;
-      this.changePhoto(index);
+      this.changeItem(index);
     }
   }
 };
