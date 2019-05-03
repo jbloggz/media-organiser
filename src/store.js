@@ -19,6 +19,9 @@ export default new Vuex.Store({
     snack: null
   },
   getters: {
+    getMedia(state) {
+      return state.media;
+    },
     getFiles(state) {
       return _.map(state.media, 'file');
     },
@@ -296,10 +299,11 @@ export default new Vuex.Store({
     },
     loadScannedTags(context, payload) {
       const item = payload || context.getters.getCurrent;
+      const apiKey = localStorage.apiKey;
 
       context.commit('SET_PROCESSING_TAGS', { item, value: true });
       axios
-        .get(`/api/annotate?file=${item.file}&key=${localStorage.apiKey}`)
+        .get(`/api/annotate?file=${item.file}&type=${item.type}&key=${apiKey}`)
         .then(resp => {
           if (
             Array.isArray(resp.data.tags) &&

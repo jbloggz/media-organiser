@@ -4,7 +4,7 @@ import http from 'http';
 import express from 'express';
 import bodyParser from 'body-parser';
 import fs from 'fs';
-import { basename, dirname } from 'path';
+import { basename, dirname, extname } from 'path';
 import mime from 'mime-types';
 import exif from 'exif-parser';
 import sharp from 'sharp';
@@ -254,6 +254,12 @@ app.get('/api/loadPath', async (req, res) => {
   const output = { people: {}, tags: {} };
   const files = getDirectoryContents(path);
 
+  /* Clean out the poster directory */
+  const posters = getDirectoryContents('posters/') || [];
+  for (const name of posters) {
+    fs.unlink(`posters/${name}`, () => {});
+  }
+
   /* Get the image files */
   const photos = files
     .filter(name => mime.lookup(name) === 'image/jpeg')
@@ -363,7 +369,9 @@ app.get('/api/loadPath', async (req, res) => {
         if (!stream) return null;
 
         /* Check if we have GPS and timestamp */
-        let lat, lng, timestamp;
+        let lat = null;
+        let lng = null;
+        let timestamp = null;
         if (meta.format.tags) {
           if (meta.format.tags.location) {
             lat = parseFloat(
@@ -428,6 +436,23 @@ app.get('/api/img', (req, res) => {
     .catch(err => res.status(404).json(err.message));
 });
 
+/* Route for loading video file */
+app.get('/api/video', (req, res) => {
+  if (!req.query.file) {
+    return res.status(404).json('No file provided');
+  }
+
+  const stream = fs.createReadStream(req.query.file);
+  stream.on('open', function() {
+    res.writeHead(200, { 'Content-Type': mime.lookup(req.query.file) });
+    stream.pipe(res);
+  });
+
+  stream.on('error', err => {
+    res.end(err);
+  });
+});
+
 /* Route for getting image tags */
 app.get('/api/annotate', async (req, res) => {
   if (!req.query.file) {
@@ -436,7 +461,12 @@ app.get('/api/annotate', async (req, res) => {
     return res.status(404).json('No key provided');
   }
 
-  const stream = sharp(req.query.file);
+  let file = req.query.file;
+  if (req.query.type && req.query.type !== 'image') {
+    file = `posters/${basename(req.query.file)}.jpg`;
+  }
+
+  const stream = sharp(file);
 
   stream
     .metadata()
@@ -574,6 +604,7 @@ app.post('/api/save', async (req, res) => {
   if (!item.timestamp || !item.timezone) {
     return res.status(404).json('No timestamp or timezone in item');
   }
+  const ext = extname(item.file).toLowerCase();
   let name = item.timestamp;
   let year, month, date;
   for (let i = 0; ; i++) {
@@ -587,7 +618,7 @@ app.post('/api/save', async (req, res) => {
       timeZone: item.timezone
     });
     try {
-      fs.accessSync(`${path}${year}/${month}/${name}.jpg`, fs.constants.R_OK);
+      fs.accessSync(`${path}${year}/${month}/${name}${ext}`, fs.constants.R_OK);
     } catch (err) {
       if (err.code === 'ENOENT') {
         break;
@@ -631,7 +662,7 @@ app.post('/api/save', async (req, res) => {
 
   /* Copy file to folder */
   try {
-    fs.copyFileSync(item.file, `${path}${year}/${month}/${name}.jpg`);
+    fs.copyFileSync(item.file, `${path}${year}/${month}/${name}${ext}`);
   } catch (err) {
     return res
       .status(404)
@@ -645,7 +676,7 @@ app.post('/api/save', async (req, res) => {
     sqlres = await sqlRun(
       db,
       'INSERT INTO media VALUES (NULL,?,?,?,?,?,?,?,?,?,?,?,?)',
-      `${year}/${month}/${name}.jpg`,
+      `${year}/${month}/${name}${ext}`,
       item.type,
       item.size,
       item.length || null,
