@@ -65,26 +65,21 @@ export default {
         : null;
 
       /* If the location is null, then remove the marker */
-      if (loc === null) {
+      if (loc === null || loc.lat === null || loc.lng === null) {
         this.marker.setMap(null);
         this.marker.setPosition(null);
         return;
       }
 
-      if (loc.lat === null || loc.lng === null) {
-        /* The location isn't set, so update it to the current map position */
-        if (marker_pos) {
-          this.updateLocation(marker_pos);
-        }
-      } else if (
+      /*
+       * If the location is different to the marker, update the marker. But
+       * only change the view if the marker is outside of the current view
+       */
+      if (
         !marker_pos ||
         marker_pos.lat !== loc.lat ||
         marker_pos.lng !== loc.lng
       ) {
-        /*
-         * The location is different to the marker, so update the marker. But
-         * only change the view if the marker is outside of the current view
-         */
         const bounds = this.gmap.getBounds();
         if (!bounds || !bounds.contains(loc)) {
           this.gmap.setCenter(loc);

@@ -104,17 +104,21 @@ function checkPath(path, res, has_write) {
 }
 
 function getDirectoryContents(path) {
-  return fs.readdirSync(path).filter(name => {
-    if (name.startsWith('.')) {
-      return false;
-    }
-    try {
-      fs.accessSync(`${path}${name}`, fs.constants.R_OK);
-    } catch (err) {
-      return false;
-    }
-    return true;
-  });
+  try {
+    return fs.readdirSync(path).filter(name => {
+      if (name.startsWith('.')) {
+        return false;
+      }
+      try {
+        fs.accessSync(`${path}${name}`, fs.constants.R_OK);
+      } catch (err) {
+        return false;
+      }
+      return true;
+    });
+  } catch (err) {
+    return false;
+  }
 }
 
 function openDatabase(path) {

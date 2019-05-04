@@ -195,6 +195,17 @@ export default new Vuex.Store({
     SET_TAGS(state, payload) {
       payload.item[payload.type] = payload.list.sort();
     },
+    COPY_ITEM_VALUES(state, item) {
+      /* Copy some values to the next item if it doesn't have them */
+      const nextItem = state.media[state.index + 1];
+      if (nextItem) {
+        for (const key of ['lat', 'lng', 'camera']) {
+          if (!nextItem[key]) {
+            nextItem[key] = item[key];
+          }
+        }
+      }
+    },
     SAVE_CURRENT(state, item) {
       /* Update tags/people */
       for (const tag of item.tags) {
@@ -467,6 +478,7 @@ export default new Vuex.Store({
         return axios
           .post(`/api/save`, { item, path: localStorage.outputPath })
           .then(() => {
+            context.commit('COPY_ITEM_VALUES', item);
             context.commit('SAVE_CURRENT', item);
 
             /* Trigger an item change to get annotations */
@@ -490,6 +502,7 @@ export default new Vuex.Store({
         return axios
           .get(`/api/trash?file=${item.file}&path=${localStorage.outputPath}`)
           .then(() => {
+            context.commit('COPY_ITEM_VALUES', item);
             context.commit('TRASH_CURRENT');
 
             /* Trigger a item change to get annotations */
