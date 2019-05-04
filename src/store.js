@@ -274,6 +274,7 @@ export default new Vuex.Store({
             }
           }
           context.commit('SET_MEDIA', json.data);
+          context.commit('SET_INDEX', json.data.media.length > 0 ? 0 : null);
 
           /* Trigger an item change to get annotations */
           context.dispatch('changeItem', 0);

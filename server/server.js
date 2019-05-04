@@ -1,3 +1,4 @@
+import 'babel-polyfill';
 import _ from 'lodash';
 import axios from 'axios';
 import http from 'http';
