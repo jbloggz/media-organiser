@@ -33,6 +33,10 @@ export default new Vuex.Store({
         ? state.media[state.index]
         : null;
     },
+    getTzOffset(state, getters) {
+      const item = getters.getCurrent;
+      return item && item.timezone ? item.tzOffset : null;
+    },
     getLocation(state, getters) {
       const item = getters.getCurrent;
       return item

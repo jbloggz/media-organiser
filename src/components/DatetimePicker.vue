@@ -30,6 +30,8 @@
 </template>
 
 <script>
+import { mapGetters } from 'vuex';
+
 export default {
   name: 'DatetimePicker',
   props: {
@@ -49,6 +51,7 @@ export default {
     };
   },
   computed: {
+    ...mapGetters(['getTzOffset']),
     displayText() {
       const options = {
         weekday: 'long',
@@ -68,7 +71,17 @@ export default {
   },
   methods: {
     input() {
-      this.$emit('change', Date.parse(`${this.dateString} ${this.timeString}`));
+      const itemOffset = this.getTzOffset;
+      const localOffset = new Date().getTimezoneOffset() * -60;
+      let shift = localOffset - itemOffset;
+      if (itemOffset === null) {
+        shift = 0;
+      }
+
+      this.$emit(
+        'change',
+        Date.parse(`${this.dateString} ${this.timeString}`) + shift * 1000
+      );
     }
   }
 };
