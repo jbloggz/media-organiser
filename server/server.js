@@ -661,9 +661,6 @@ app.post('/api/save', async (req, res) => {
         .json(`Error: Item is missing a value for '${key}'`);
     }
   }
-  if (!item.tags || !Array.isArray(item.tags) || item.tags.length === 0) {
-    return res.status(404).json('Error: At least one tag is required');
-  }
 
   /* Copy file to folder */
   try {

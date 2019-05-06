@@ -9,24 +9,8 @@
           <span v-if="selectedFile"> - {{ selectedFile }}</span>
         </v-toolbar-title>
         <v-spacer></v-spacer>
-        <v-btn
-          v-if="selectedFile"
-          icon
-          title="Save"
-          :loading="saving"
-          @click="save"
-        >
-          <v-icon>mdi-content-save</v-icon>
-        </v-btn>
-        <v-btn
-          v-if="selectedFile"
-          icon
-          title="Trash"
-          :loading="trashing"
-          @click="trash"
-        >
-          <v-icon>mdi-trash-can</v-icon>
-        </v-btn>
+        <SaveDialog @done="itemProcessed" />
+        <TrashDialog @done="itemProcessed" />
         <SettingsDialog @theme="changeTheme" />
         <HelpDialog />
       </v-toolbar>
@@ -52,11 +36,13 @@
 
 <script>
 import Vue from 'vue';
-import { mapActions, mapGetters } from 'vuex';
+import { mapGetters } from 'vuex';
 import WelcomeDialog from '@/components/WelcomeDialog.vue';
 import SettingsDialog from '@/components/SettingsDialog.vue';
 import HelpDialog from '@/components/HelpDialog.vue';
 import OpenDialog from '@/components/OpenDialog.vue';
+import TrashDialog from '@/components/TrashDialog.vue';
+import SaveDialog from '@/components/SaveDialog.vue';
 
 export default {
   name: 'App',
@@ -64,7 +50,9 @@ export default {
     WelcomeDialog,
     SettingsDialog,
     HelpDialog,
-    OpenDialog
+    OpenDialog,
+    TrashDialog,
+    SaveDialog
   },
   data() {
     return {
@@ -82,7 +70,7 @@ export default {
     };
   },
   computed: {
-    ...mapGetters(['getFiles', 'getCurrent', 'getSnack']),
+    ...mapGetters(['getCurrent', 'getSnack']),
     selectedFile() {
       return this.getCurrent
         ? this.getCurrent.file.substring(
@@ -115,7 +103,6 @@ export default {
     }
   },
   methods: {
-    ...mapActions(['saveCurrent', 'trashCurrent']),
     changeTheme(theme) {
       this.theme = theme;
     },
@@ -125,45 +112,8 @@ export default {
         this.snack = { show: true, color, timeout, msg };
       });
     },
-    save() {
-      this.saving = true;
-      this.saveCurrent()
-        .then(() => {
-          if (this.getFiles.length > 0) {
-            this.showSnackbar('success', 4000, 'Successfully saved');
-          } else {
-            this.showSnackbar(
-              'success',
-              0,
-              "All items processed. Click the 'Open' button to select another folder"
-            );
-          }
-          this.saving = false;
-        })
-        .catch(msg => {
-          this.showSnackbar('error', 4000, msg);
-          this.saving = false;
-        });
-    },
-    trash() {
-      this.trashing = true;
-      this.trashCurrent()
-        .then(() => {
-          if (this.getFiles.length > 0) {
-            this.showSnackbar('success', 4000, 'Successfully trashed');
-          } else {
-            this.showSnackbar(
-              'success',
-              0,
-              "All items processed. Click the 'Open' button to select another folder"
-            );
-          }
-          this.trashing = false;
-        })
-        .catch(resp => {
-          this.showSnackbar('error', 4000, resp.response.data);
-          this.trashing = false;
-        });
+    itemProcessed(payload) {
+      this.showSnackbar(...payload);
     }
   }
 };
