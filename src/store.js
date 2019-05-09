@@ -105,7 +105,7 @@ export default new Vuex.Store({
         if (item.scannedTags === null) {
           return item.processingScannedTags ? null : undefined;
         } else {
-          for (const val of item.scannedTags) {
+          for (const val of Object.keys(item.scannedTags)) {
             if (!suggested.includes(val)) {
               suggested.push(val);
             }
@@ -321,12 +321,7 @@ export default new Vuex.Store({
       axios
         .get(`/api/annotate?file=${item.file}&type=${item.type}&key=${apiKey}`)
         .then(resp => {
-          if (
-            Array.isArray(resp.data.tags) &&
-            resp.data.tags.every(tag => typeof tag === 'string')
-          ) {
-            context.commit('SET_SCANNED_TAGS', { item, tags: resp.data.tags });
-          }
+          context.commit('SET_SCANNED_TAGS', { item, tags: resp.data.tags });
         })
         .catch(() => {
           context.commit('SET_PROCESSING_TAGS', { item, value: false });
@@ -464,11 +459,7 @@ export default new Vuex.Store({
     updateScannedTags(context, tags) {
       const item = context.getters.getCurrent;
 
-      if (
-        item &&
-        Array.isArray(tags) &&
-        tags.every(tag => typeof tag === 'string')
-      ) {
+      if (item) {
         context.commit('SET_SCANNED_TAGS', { item, tags });
       }
     },

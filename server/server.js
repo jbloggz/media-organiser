@@ -156,6 +156,7 @@ function openDatabase(path) {
         CREATE TABLE IF NOT EXISTS tag_map (
           media       INTEGER NOT NULL REFERENCES media(id) ON DELETE CASCADE ON UPDATE CASCADE,
           tag         INTEGER NOT NULL REFERENCES tag(id) ON DELETE CASCADE ON UPDATE CASCADE,
+          score       INTEGER NOT NULL,
           UNIQUE(media, tag)
         );
         CREATE TABLE IF NOT EXISTS person_map (
@@ -495,7 +496,7 @@ app.get('/api/annotate', async (req, res) => {
         requests: [
           {
             image: { content: img.toString('base64') },
-            features: [{ type: 'LABEL_DETECTION' }]
+            features: [{ type: 'LABEL_DETECTION', maxResults: 100 }]
           }
         ]
       };
@@ -511,9 +512,13 @@ app.get('/api/annotate', async (req, res) => {
       if (!annotations) {
         throw new Error('Invalid annotations response');
       }
+      const obj = {};
+      for (const val of annotations) {
+        obj[val.description.toLowerCase()] = val.score;
+      }
       res.json({
         file: req.query.file,
-        tags: annotations.map(obj => obj.description.toLowerCase())
+        tags: obj
       });
     })
     .catch(err =>
@@ -692,18 +697,27 @@ app.post('/api/save', async (req, res) => {
       item.camera
     );
     id = sqlres.lastID;
+    /* Add all the selected tags to the scanned list */
     for (const tag of item.tags) {
+      item.scannedTags[tag] = 1;
+    }
+
+    /* Insert the tags */
+    for (const tag of Object.keys(item.scannedTags)) {
       row = await sqlGet(db, 'SELECT id FROM tag WHERE name = ?', tag);
       if (!row) {
         sqlres = await sqlRun(db, 'INSERT INTO tag VALUES (NULL,?)', tag);
       }
       await sqlRun(
         db,
-        'INSERT INTO tag_map VALUES (?,?)',
+        'INSERT INTO tag_map VALUES (?,?,?)',
         id,
-        row ? row.id : sqlres.lastID
+        row ? row.id : sqlres.lastID,
+        item.scannedTags[tag]
       );
     }
+
+    /* Insert the people */
     for (const person of item.people) {
       row = await sqlGet(db, 'SELECT id FROM person WHERE name = ?', person);
       if (!row) {

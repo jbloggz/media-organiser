@@ -50,7 +50,7 @@
       </div>
       <div>
         <v-btn title="Retry" @click="loadScannedTags()">Retry</v-btn>
-        <v-btn title="Ignore" @click="updateScannedTags([])">Ignore</v-btn>
+        <v-btn title="Ignore" @click="updateScannedTags({})">Ignore</v-btn>
       </div>
     </v-layout>
   </v-container>
