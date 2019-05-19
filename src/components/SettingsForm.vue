@@ -40,8 +40,11 @@
       v-model="tzShift"
       :rules="[rules.tzShift]"
       prepend-icon="mdi-map-clock"
-      label="Camera Timezone offset"
+      label="Camera time shift"
+      class="shift-input"
     ></v-text-field>
+
+    <v-btn v-if="getCurrent" @click="calculateShift">Calculate</v-btn>
 
     <v-switch
       v-model="isDark"
@@ -58,7 +61,7 @@
 
 <script>
 import axios from 'axios';
-import { mapActions } from 'vuex';
+import { mapGetters, mapActions } from 'vuex';
 
 export default {
   name: 'SettingsForm',
@@ -89,14 +92,24 @@ export default {
     };
   },
   computed: {
+    ...mapGetters(['getCurrent']),
     theme() {
       return this.isDark ? 'dark' : 'light';
     }
   },
   methods: {
-    ...mapActions(['updateTzShift']),
+    ...mapActions(['updateTzShift', 'updateTimestamp']),
     setOutputPath(path) {
       this.outputPath = path;
+    },
+    calculateShift() {
+      if (this.getCurrent) {
+        const t = this.getCurrent.timestamp;
+        this.tzShift =
+          this.getCurrent.original_timestamp - this.getCurrent.timestamp;
+        this.updateTzShift(this.tzShift);
+        this.updateTimestamp(t * 1000);
+      }
     },
     loadPath(item) {
       axios
@@ -126,5 +139,8 @@ export default {
 <style lang="scss">
 .v-treeview-node__content {
   cursor: pointer;
+}
+.shift-input {
+  display: inline-flex;
 }
 </style>
