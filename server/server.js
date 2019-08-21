@@ -615,6 +615,8 @@ app.post('/api/save', async (req, res) => {
   /* Get a unique name for the file */
   if (!item.timestamp || !item.timezone) {
     return res.status(404).json('No timestamp or timezone in item');
+  } else if (item.timestamp < 86400) {
+    return res.status(404).json('Invalid timestamp');
   }
   const ext = extname(item.file).toLowerCase();
   let name = item.timestamp;

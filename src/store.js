@@ -208,6 +208,9 @@ export default new Vuex.Store({
             nextItem[key] = item[key];
           }
         }
+        if (!nextItem.timestamp || nextItem.timestamp < 86400) {
+          nextItem.timestamp = item.timestamp + 1;
+        }
       }
     },
     SAVE_CURRENT(state, item) {
