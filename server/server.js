@@ -512,7 +512,8 @@ app.get('/api/annotate', async (req, res) => {
         null
       );
       if (!annotations) {
-        throw new Error('Invalid annotations response');
+        res.status(404).json(`Unable to process file '${req.query.file}': No annotations data (${resp})`)
+        return;
       }
       const obj = {};
       for (const val of annotations) {
