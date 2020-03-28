@@ -21,6 +21,7 @@
     "exif-parser": "^0.1.12",
     "express": "^4.16.4",
     "fluent-ffmpeg": "^2.1.2",
+    "md5": "^2.2.1",
     "mime-types": "^2.1.22",
     "sharp": "^0.22.0",
     "sqlite3": "^4.0.6",

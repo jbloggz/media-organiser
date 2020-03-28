@@ -11,6 +11,7 @@ import exif from 'exif-parser';
 import sharp from 'sharp';
 import sqlite3 from 'sqlite3';
 import ffmpeg from 'fluent-ffmpeg';
+import md5 from 'md5';
 
 const app = express();
 app.use(bodyParser.json());
@@ -75,7 +76,7 @@ function checkPath(path, res, has_write) {
   try {
     stat = fs.lstatSync(path);
   } catch (err) {
-    res.status(404).json('Invalid path');
+    res.status(404).json(`Invalid path '${path}'`);
     return false;
   }
 
@@ -143,7 +144,8 @@ function openDatabase(path) {
           tzOffset    INTEGER NOT NULL,
           lat         REAL NOT NULL,
           lng         REAL NOT NULL,
-          camera      TEXT NOT NULL
+          camera      TEXT NOT NULL,
+          md5         TEXT NOT NULL
         );
         CREATE TABLE IF NOT EXISTS tag (
           id          INTEGER PRIMARY KEY,
@@ -672,6 +674,28 @@ app.post('/api/save', async (req, res) => {
     }
   }
 
+  /* Generate md5 hash */
+  try {
+    item.md5 = md5(fs.readFileSync(item.file));
+  } catch (err) {
+    return res.status(404).json('Error: Unable to generate md5');
+  }
+
+  /* Check for md5 duplicate */
+  try {
+    db = await openDatabase(path);
+    row = await sqlGet(db, 'SELECT file FROM media WHERE md5 = ?', item.md5);
+    if (row) {
+      return res.status(404).json(`Duplicate md5 found: ${row.file}`);
+    }
+    db.close();
+  } catch (err) {
+    if (db) {
+      db.close();
+    }
+    return res.status(404).json('Unable to check md5 duplicates');
+  }
+
   /* Copy file to folder */
   try {
     fs.copyFileSync(item.file, `${path}${year}/${month}/${name}${ext}`);
@@ -687,7 +711,7 @@ app.post('/api/save', async (req, res) => {
     await sqlRun(db, 'BEGIN EXCLUSIVE');
     sqlres = await sqlRun(
       db,
-      'INSERT INTO media VALUES (NULL,?,?,?,?,?,?,?,?,?,?,?,?)',
+      'INSERT INTO media VALUES (NULL,?,?,?,?,?,?,?,?,?,?,?,?,?)',
       `${year}/${month}/${name}${ext}`,
       item.type,
       item.size,
@@ -699,7 +723,8 @@ app.post('/api/save', async (req, res) => {
       item.tzOffset,
       item.lat,
       item.lng,
-      item.camera
+      item.camera,
+      item.md5
     );
     id = sqlres.lastID;
     /* Add all the selected tags to the scanned list */
